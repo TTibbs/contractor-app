@@ -1,7 +1,18 @@
-import { previewInvoiceHtml, generateInvoiceForJob } from "@/services/invoiceService";
+import { JobHeader } from "@/components/jobs/details/JobHeader";
+import {
+  previewInvoiceHtml,
+  generateInvoiceForJob,
+} from "@/services/invoiceService";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Alert, ActivityIndicator, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  Alert,
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import RenderHtml from "react-native-render-html";
 
 export default function InvoicePreviewScreen() {
@@ -120,15 +131,7 @@ export default function InvoicePreviewScreen() {
 
   return (
     <View className="flex-1 bg-slate-50">
-      <View className="flex-row items-center justify-between border-b border-slate-200 bg-white px-4 pb-4 pt-14">
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text className="text-base text-blue-500">Back</Text>
-        </TouchableOpacity>
-        <Text className="text-lg font-semibold text-slate-800">
-          Invoice Preview
-        </Text>
-        <View className="w-10" />
-      </View>
+      <JobHeader title="Invoice Preview" onBack={() => router.back()} />
 
       <ScrollView className="flex-1 px-4 py-4">
         <RenderHtml contentWidth={400} source={{ html }} />

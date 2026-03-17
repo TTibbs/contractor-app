@@ -1,7 +1,12 @@
-import { getJobSignature, saveSignatureForJob } from "@/services/signatureService";
+import { JobHeader } from "@/components/jobs/details/JobHeader";
+import { LoadingState } from "@/components/ScreenState/LoadingState";
+import {
+  getJobSignature,
+  saveSignatureForJob,
+} from "@/services/signatureService";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from "react-native";
+import { Alert, Text, TouchableOpacity, View } from "react-native";
 import Signature from "react-native-signature-canvas";
 import * as FileSystem from "expo-file-system/legacy";
 
@@ -70,23 +75,14 @@ export default function JobSignatureScreen() {
 
   return (
     <View className="flex-1 bg-slate-50">
-      <View className="flex-row items-center justify-between border-b border-slate-200 bg-white px-4 pb-4 pt-14">
-        <TouchableOpacity disabled={saving} onPress={() => router.back()}>
-          <Text className="text-base text-blue-500">Back</Text>
-        </TouchableOpacity>
-        <Text className="text-lg font-semibold text-slate-800">
-          Client Signature
-        </Text>
-        <View className="w-10" />
-      </View>
+      <JobHeader
+        title="Client Signature"
+        onBack={() => router.back()}
+        backDisabled={saving}
+      />
 
       {loading && (
-        <View className="flex-1 items-center justify-center px-5">
-          <ActivityIndicator size="large" />
-          <Text className="mt-4 text-sm text-gray-400">
-            Loading existing signature...
-          </Text>
-        </View>
+        <LoadingState message="Loading existing signature..." />
       )}
 
       {!loading && (

@@ -1,3 +1,10 @@
+import { BusinessSummaryCard } from "@/components/profile/BusinessSummaryCard";
+import { ExpensesCard } from "@/components/profile/ExpensesCard";
+import { TaxPaymentsCard } from "@/components/profile/TaxPaymentsCard";
+import { TaxSettingsModal } from "@/components/profile/TaxSettingsModal";
+import { ErrorState } from "@/components/ScreenState/ErrorState";
+import { LoadingState } from "@/components/ScreenState/LoadingState";
+import { ExpenseRow, TaxPayment, TaxSummary } from "@/types/profile";
 import {
   addTaxPayment,
   getAllExpenses,
@@ -9,47 +16,11 @@ import {
   getYearToDateTaxPaid,
   setTaxRate,
 } from "@/database/db";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-
-interface TaxSummary {
-  income: number;
-  expenses: number;
-  profit: number;
-  taxRate: number;
-  estimatedTax: number;
-  taxPaid: number;
-  remainingTax: number;
-}
-
-interface TaxPayment {
-  id: string;
-  amount: number;
-  note: string | null;
-  paidAt: string;
-}
-
-interface ExpenseRow {
-  id: string;
-  amount: number;
-  note: string | null;
-  createdAt: string;
-  jobId: string | null;
-  jobTitle: string | null;
-}
+import { Alert, ScrollView, Text, View } from "react-native";
 
 export default function ProfileScreen() {
-  const router = useRouter();
   const [summary, setSummary] = useState<TaxSummary | null>(null);
   const [payments, setPayments] = useState<TaxPayment[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -132,24 +103,12 @@ export default function ProfileScreen() {
 
   if (loading && !summary) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 px-5">
-        <ActivityIndicator size="large" />
-        <Text className="mt-4 text-sm text-gray-400">
-          Loading business dashboard...
-        </Text>
-      </View>
+      <LoadingState message="Loading business dashboard..." />
     );
   }
 
   if (error && !summary) {
-    return (
-      <View className="flex-1 items-center justify-center bg-slate-50 px-5">
-        <Text className="mb-2 text-xl font-semibold text-red-500">
-          Something went wrong
-        </Text>
-        <Text className="mb-4 text-center text-sm text-gray-400">{error}</Text>
-      </View>
-    );
+    return <ErrorState message={error} />;
   }
 
   const handleSaveConfiguredTaxRate = async () => {
@@ -234,197 +193,58 @@ export default function ProfileScreen() {
           </Text>
 
           {summary && (
-            <View className="mb-6 rounded-2xl bg-white p-4 shadow-md">
-              <Text className="mb-3 text-sm font-semibold text-slate-700">
-                Income & Expenses
-              </Text>
-              <View className="mb-4 flex-row justify-between">
-                <View>
-                  <Text className="text-xs text-gray-500">Income (YTD)</Text>
-                  <Text className="text-lg font-semibold text-emerald-600">
-                    {formatCurrency(summary.income)}
-                  </Text>
-                  <Text className="mt-1 text-[11px] text-gray-500">
-                    Paid: {formatCurrency(paidTotal)} · Unpaid:{" "}
-                    {formatCurrency(unpaidTotal)}
-                  </Text>
-                </View>
-                <View>
-                  <Text className="text-xs text-gray-500">Expenses</Text>
-                  <Text className="text-lg font-semibold text-rose-500">
-                    {formatCurrency(summary.expenses)}
-                  </Text>
-                </View>
-              </View>
-
-              <View className="mb-4 border-t border-slate-100 pt-4">
-                <Text className="mb-1 text-xs text-gray-500">
-                  Estimated Taxable Profit
-                </Text>
-                <Text className="text-xl font-semibold text-slate-800">
-                  {formatCurrency(summary.profit)}
-                </Text>
-              </View>
-
-              <View className="mt-2 border-t border-slate-100 pt-4">
-                <Text className="mb-1 text-xs text-gray-500">
-                  Estimated Tax (at {Math.round(summary.taxRate * 100)}
-                  %)
-                </Text>
-                <View className="mb-2 flex-row items-center justify-between">
-                  <Text className="text-lg font-semibold text-slate-800">
-                    {formatCurrency(summary.estimatedTax)}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setShowTaxSettings(true)}
-                    className="rounded-full border border-slate-300 px-3 py-1"
-                  >
-                    <Text className="text-xs font-semibold text-slate-700">
-                      Adjust
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-                <View className="mt-1 flex-row justify-between">
-                  <View>
-                    <Text className="text-xs text-gray-500">Tax Paid</Text>
-                    <Text className="text-base font-semibold text-slate-800">
-                      {formatCurrency(summary.taxPaid)}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text className="text-xs text-gray-500">Remaining Tax</Text>
-                    <Text className="text-base font-semibold text-amber-600">
-                      {formatCurrency(summary.remainingTax)}
-                    </Text>
-                  </View>
-                </View>
-
-                <View className="mt-4">
-                  <Text className="mb-1 text-xs text-gray-500">
-                    Record Tax Payment
-                  </Text>
-                  <View className="flex-row items-center gap-2">
-                    <View className="flex-1">
-                      <TextInput
-                        className={`rounded-lg border bg-white px-3 py-2 text-base text-slate-800 ${
-                          taxPaymentError
-                            ? "border-red-400"
-                            : "border-slate-300"
-                        }`}
-                        value={taxPaymentAmount}
-                        onChangeText={(text) => {
-                          setTaxPaymentAmount(text);
-                          if (taxPaymentError) {
-                            setTaxPaymentError(null);
-                          }
-                        }}
-                        placeholder="Amount paid (e.g., 500)"
-                        keyboardType="decimal-pad"
-                      />
-                      {taxPaymentError && (
-                        <Text className="mt-1 text-xs text-red-500">
-                          {taxPaymentError}
-                        </Text>
-                      )}
-                    </View>
-                    <TouchableOpacity
-                      className="items-center justify-center rounded-lg bg-blue-500 px-4 py-3"
-                      onPress={handleSaveTaxPayment}
-                      disabled={savingTaxPayment}
-                    >
-                      <Text className="text-xs font-semibold text-white">
-                        {savingTaxPayment ? "Saving..." : "Add"}
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </View>
+            <BusinessSummaryCard
+              income={formatCurrency(summary.income)}
+              expenses={formatCurrency(summary.expenses)}
+              profit={formatCurrency(summary.profit)}
+              taxRatePercent={Math.round(summary.taxRate * 100)}
+              estimatedTax={formatCurrency(summary.estimatedTax)}
+              taxPaid={formatCurrency(summary.taxPaid)}
+              remainingTax={formatCurrency(summary.remainingTax)}
+              paidTotal={formatCurrency(paidTotal)}
+              unpaidTotal={formatCurrency(unpaidTotal)}
+              taxPaymentAmount={taxPaymentAmount}
+              taxPaymentError={taxPaymentError}
+              savingTaxPayment={savingTaxPayment}
+              onChangeTaxPaymentAmount={(text) => {
+                setTaxPaymentAmount(text);
+                if (taxPaymentError) {
+                  setTaxPaymentError(null);
+                }
+              }}
+              onSaveTaxPayment={handleSaveTaxPayment}
+              onOpenTaxSettings={() => setShowTaxSettings(true)}
+            />
           )}
 
           <View className="mb-4">
             <Text className="mb-2 text-sm font-semibold text-slate-800">
               All Expenses
             </Text>
-            {expensesList.length === 0 ? (
-              <Text className="text-sm text-gray-400">
-                No expenses recorded yet.
-              </Text>
-            ) : (
-              <View className="rounded-2xl bg-white p-3 shadow-md">
-                {expensesList.map((expense) => (
-                  <View
-                    key={expense.id}
-                    className="border-b border-slate-100 py-2 last:border-b-0"
-                  >
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-1 pr-2">
-                        <Text className="text-base font-semibold text-slate-800">
-                          {formatCurrency(expense.amount)}
-                        </Text>
-                        <Text className="text-xs text-gray-400">
-                          {new Date(expense.createdAt).toLocaleDateString()}
-                        </Text>
-                        {expense.note && (
-                          <Text className="mt-1 text-xs text-gray-500">
-                            {expense.note}
-                          </Text>
-                        )}
-                        {expense.jobTitle && (
-                          <Text className="mt-1 text-xs text-gray-500">
-                            Job: {expense.jobTitle}
-                          </Text>
-                        )}
-                      </View>
-                      {expense.jobId && (
-                        <TouchableOpacity
-                          className="items-center justify-center rounded-full border border-slate-300 px-3 py-1"
-                          onPress={() => router.push(`/job/${expense.jobId}`)}
-                        >
-                          <Text className="text-xs font-semibold text-blue-600">
-                            View job
-                          </Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                  </View>
-                ))}
-              </View>
-            )}
+            <ExpensesCard
+              expenses={expensesList.map((expense) => ({
+                id: expense.id,
+                amount: formatCurrency(expense.amount),
+                note: expense.note,
+                createdAt: new Date(expense.createdAt).toLocaleDateString(),
+                jobId: expense.jobId,
+                jobTitle: expense.jobTitle,
+              }))}
+            />
           </View>
 
           <View className="mb-4">
             <Text className="mb-2 text-sm font-semibold text-slate-800">
               Recent Tax Payments
             </Text>
-            {payments.length === 0 ? (
-              <Text className="text-sm text-gray-400">
-                No tax payments recorded yet.
-              </Text>
-            ) : (
-              <View className="rounded-2xl bg-white p-3 shadow-md">
-                {payments.map((payment) => (
-                  <View
-                    key={payment.id}
-                    className="border-b border-slate-100 py-2 last:border-b-0"
-                  >
-                    <View className="flex-row items-center justify-between">
-                      <Text className="text-base font-semibold text-slate-800">
-                        {formatCurrency(payment.amount)}
-                      </Text>
-                      <Text className="text-xs text-gray-400">
-                        {new Date(payment.paidAt).toLocaleDateString()}
-                      </Text>
-                    </View>
-                    {payment.note && (
-                      <Text className="mt-1 text-xs text-gray-500">
-                        {payment.note}
-                      </Text>
-                    )}
-                  </View>
-                ))}
-              </View>
-            )}
+            <TaxPaymentsCard
+              payments={payments.map((payment) => ({
+                id: payment.id,
+                amount: formatCurrency(payment.amount),
+                note: payment.note,
+                paidAt: new Date(payment.paidAt).toLocaleDateString(),
+              }))}
+            />
           </View>
 
           {summary && (
@@ -435,73 +255,25 @@ export default function ProfileScreen() {
         </View>
       </ScrollView>
 
-      <Modal
-        transparent
+      <TaxSettingsModal
         visible={showTaxSettings}
-        animationType="slide"
-        onRequestClose={() => {
-          if (!savingTaxRate) {
-            setShowTaxSettings(false);
+        taxRateInput={taxRateInput}
+        taxRateError={taxRateError}
+        savingTaxRate={savingTaxRate}
+        onChangeTaxRateInput={(text) => {
+          setTaxRateInput(text);
+          if (taxRateError) {
+            setTaxRateError(null);
           }
         }}
-      >
-        <View className="flex-1 items-center justify-center bg-black/30 px-6">
-          <View className="w-full rounded-2xl bg-white p-5">
-            <Text className="mb-1 text-base font-semibold text-slate-800">
-              Tax settings
-            </Text>
-            <Text className="mb-4 text-xs text-gray-500">
-              Set the tax rate used for your year-to-date estimates on this
-              dashboard. This is a rough guide only and is not tax advice.
-            </Text>
-
-            <Text className="mb-1 text-xs text-gray-500">Tax rate (%)</Text>
-            <TextInput
-              className={`mb-1 rounded-lg border bg-white px-3 py-2 text-base text-slate-800 ${
-                taxRateError ? "border-red-400" : "border-slate-300"
-              }`}
-              value={taxRateInput}
-              onChangeText={(text) => {
-                setTaxRateInput(text);
-                if (taxRateError) {
-                  setTaxRateError(null);
-                }
-              }}
-              placeholder="e.g., 20"
-              keyboardType="decimal-pad"
-            />
-            {taxRateError && (
-              <Text className="mb-2 text-xs text-red-500">{taxRateError}</Text>
-            )}
-
-            <View className="mt-3 flex-row gap-2">
-              <TouchableOpacity
-                className="flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3"
-                onPress={() => {
-                  if (!savingTaxRate) {
-                    setShowTaxSettings(false);
-                    setTaxRateError(null);
-                  }
-                }}
-                disabled={savingTaxRate}
-              >
-                <Text className="text-sm font-semibold text-gray-600">
-                  Cancel
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                className="flex-1 items-center justify-center rounded-lg bg-blue-500 px-4 py-3"
-                onPress={handleSaveConfiguredTaxRate}
-                disabled={savingTaxRate}
-              >
-                <Text className="text-sm font-semibold text-white">
-                  {savingTaxRate ? "Saving..." : "Save tax rate"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onSave={handleSaveConfiguredTaxRate}
+        onCancel={() => {
+          if (!savingTaxRate) {
+            setShowTaxSettings(false);
+            setTaxRateError(null);
+          }
+        }}
+      />
     </>
   );
 }
