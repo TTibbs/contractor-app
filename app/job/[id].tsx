@@ -1,12 +1,16 @@
 import { PhotoThumbnail } from "@/components/PhotoThumbnail";
 import {
+  addExpense,
   addPhoto,
   deleteNote,
+  getExpensesForJob,
   getJobById,
+  getTotalExpensesForJob,
   updateJob,
   updateJobPaidStatus,
   updateJobStatus,
 } from "@/database/db";
+import { Expense } from "@/types/job";
 import { generateInvoiceForJob } from "@/services/invoiceService";
 import { getJobSignature } from "@/services/signatureService";
 import { JobWithDetails } from "@/types/job";
@@ -45,6 +49,12 @@ export default function JobDetailsScreen() {
   const [editAddress, setEditAddress] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPrice, setEditPrice] = useState("");
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseNote, setExpenseNote] = useState("");
+  const [expenseError, setExpenseError] = useState<string | null>(null);
+  const [jobExpensesTotal, setJobExpensesTotal] = useState(0);
+  const [jobExpenses, setJobExpenses] = useState<Expense[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -62,8 +72,14 @@ export default function JobDetailsScreen() {
       const jobData = await getJobById(id);
       setJob(jobData);
       if (jobData) {
-        const signature = await getJobSignature(jobData.id);
+        const [signature, expensesTotal, expenses] = await Promise.all([
+          getJobSignature(jobData.id),
+          getTotalExpensesForJob(jobData.id),
+          getExpensesForJob(jobData.id),
+        ]);
         setHasSignature(!!signature);
+        setJobExpensesTotal(expensesTotal);
+        setJobExpenses(expenses);
       } else {
         setHasSignature(false);
         setError("We couldn't find this job. It may have been deleted.");
@@ -261,6 +277,57 @@ export default function JobDetailsScreen() {
         },
       ],
     );
+  };
+
+  const handleSaveExpense = async () => {
+    if (!job) return;
+
+    const trimmedAmount = expenseAmount.trim();
+    if (!trimmedAmount) {
+      setExpenseError("Amount is required.");
+      return;
+    }
+
+    const numeric = Number(trimmedAmount.replace(/,/g, ""));
+    if (Number.isNaN(numeric) || numeric < 0) {
+      setExpenseError("Enter a valid, non-negative number.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setExpenseError(null);
+
+      await addExpense({
+        amount: numeric,
+        jobId: job.id,
+        category: "Job",
+        note: expenseNote.trim()
+          ? `${job.title} – ${expenseNote.trim()}`
+          : job.title,
+      });
+
+      setExpenseAmount("");
+      setExpenseNote("");
+      setShowExpenseForm(false);
+
+      const [updatedTotal, updatedExpenses] = await Promise.all([
+        getTotalExpensesForJob(job.id),
+        getExpensesForJob(job.id),
+      ]);
+      setJobExpensesTotal(updatedTotal);
+      setJobExpenses(updatedExpenses);
+
+      Alert.alert(
+        "Expense recorded",
+        "This expense has been added to your totals.",
+      );
+    } catch (e) {
+      console.error("Failed to record expense", e);
+      setExpenseError("Failed to save expense. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const beginEdit = () => {
@@ -467,12 +534,28 @@ export default function JobDetailsScreen() {
             </View>
           )}
 
-          {!isEditing && job.price && (
+          {!isEditing && job.price != null && (
             <View className="mb-3">
               <Text className="mb-1 text-xs text-gray-500">Price:</Text>
               <Text className="text-base text-slate-800">
-                ${job.price.toFixed(2)}
+                £{job.price.toFixed(2)}
               </Text>
+              {jobExpensesTotal > 0 && (
+                <>
+                  <Text className="mt-2 text-xs text-gray-500">
+                    Expenses added for this job:
+                  </Text>
+                  <Text className="text-base text-slate-800">
+                    £{jobExpensesTotal.toFixed(2)}
+                  </Text>
+                  <Text className="mt-1 text-xs text-gray-500">
+                    Total including expenses:
+                  </Text>
+                  <Text className="text-base font-semibold text-slate-800">
+                    £{(job.price + jobExpensesTotal).toFixed(2)}
+                  </Text>
+                </>
+              )}
             </View>
           )}
 
@@ -536,6 +619,110 @@ export default function JobDetailsScreen() {
               {new Date(job.createdAt).toLocaleDateString()}
             </Text>
           </View>
+        </View>
+
+        <View className="px-4 py-4">
+          <Text className="mb-3 text-lg font-semibold text-slate-800">
+            Expenses
+          </Text>
+          {showExpenseForm ? (
+            <View className="mb-3 rounded-2xl bg-white p-4 shadow-md">
+              <View className="mb-3">
+                <Text className="mb-1 text-xs text-gray-500">Amount *</Text>
+                <TextInput
+                  className={`rounded-lg border bg-white px-3 py-2 text-base text-slate-800 ${
+                    expenseError ? "border-red-400" : "border-slate-300"
+                  }`}
+                  value={expenseAmount}
+                  onChangeText={(text) => {
+                    setExpenseAmount(text);
+                    if (expenseError) {
+                      setExpenseError(null);
+                    }
+                  }}
+                  placeholder="e.g., 45.50"
+                  keyboardType="decimal-pad"
+                />
+                {expenseError && (
+                  <Text className="mt-1 text-xs text-red-500">
+                    {expenseError}
+                  </Text>
+                )}
+              </View>
+              <View className="mb-3">
+                <Text className="mb-1 text-xs text-gray-500">Note</Text>
+                <TextInput
+                  className="h-20 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-800"
+                  value={expenseNote}
+                  onChangeText={setExpenseNote}
+                  placeholder="Optional details about this expense..."
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </View>
+              <View className="flex-row gap-2">
+                <TouchableOpacity
+                  className="flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3"
+                  onPress={() => {
+                    setShowExpenseForm(false);
+                    setExpenseAmount("");
+                    setExpenseNote("");
+                    setExpenseError(null);
+                  }}
+                >
+                  <Text className="text-sm font-semibold text-gray-600">
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  className="flex-1 items-center justify-center rounded-lg bg-blue-500 px-4 py-3"
+                  onPress={handleSaveExpense}
+                >
+                  <Text className="text-sm font-semibold text-white">
+                    Save Expense
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <TouchableOpacity
+              className="flex-row items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-3"
+              onPress={() => setShowExpenseForm(true)}
+            >
+              <Text className="text-sm font-semibold text-blue-500">
+                Record an Expense for this Job
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {jobExpenses.length > 0 && (
+            <View className="mt-4 rounded-2xl bg-white p-4 shadow-md">
+              <Text className="mb-2 text-sm font-semibold text-slate-800">
+                Expense breakdown
+              </Text>
+              {jobExpenses.map((expense) => (
+                <View
+                  key={expense.id}
+                  className="border-b border-slate-100 py-2 last:border-b-0"
+                >
+                  <View className="flex-row items-center justify-between">
+                    <Text className="text-sm font-semibold text-slate-800">
+                      £{expense.amount.toFixed(2)}
+                    </Text>
+                    <Text className="text-xs text-gray-400">
+                      {new Date(expense.createdAt).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  {expense.note && (
+                    <Text className="mt-1 text-xs text-gray-500">
+                      {expense.note}
+                    </Text>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
         <View className="px-4 py-4">

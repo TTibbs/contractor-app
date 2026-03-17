@@ -1,4 +1,5 @@
 import {
+  addTaxPayment,
   getRecentTaxPayments,
   getYearToDateExpenses,
   getYearToDateIncome,
@@ -6,7 +7,15 @@ import {
 } from "@/database/db";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const DEFAULT_TAX_RATE = 0.2;
 
@@ -32,6 +41,9 @@ export default function ProfileScreen() {
   const [payments, setPayments] = useState<TaxPayment[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [taxPaymentAmount, setTaxPaymentAmount] = useState("");
+  const [taxPaymentError, setTaxPaymentError] = useState<string | null>(null);
+  const [savingTaxPayment, setSavingTaxPayment] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
@@ -105,6 +117,41 @@ export default function ProfileScreen() {
     );
   }
 
+  const handleSaveTaxPayment = async () => {
+    const trimmedAmount = taxPaymentAmount.trim();
+    if (!trimmedAmount) {
+      setTaxPaymentError("Amount is required.");
+      return;
+    }
+
+    const numeric = Number(trimmedAmount.replace(/,/g, ""));
+    if (Number.isNaN(numeric) || numeric < 0) {
+      setTaxPaymentError("Enter a valid, non-negative number.");
+      return;
+    }
+
+    try {
+      setSavingTaxPayment(true);
+      setTaxPaymentError(null);
+
+      await addTaxPayment({
+        amount: numeric,
+      });
+
+      setTaxPaymentAmount("");
+      await loadData();
+
+      Alert.alert("Tax payment recorded", "Your tax payment has been saved.");
+    } catch (e) {
+      console.error("Failed to save tax payment", e);
+      setTaxPaymentError(
+        "Something went wrong while saving. Please try again.",
+      );
+    } finally {
+      setSavingTaxPayment(false);
+    }
+  };
+
   return (
     <ScrollView className="flex-1 bg-slate-50">
       <View className="px-4 pt-4 pb-6">
@@ -146,8 +193,7 @@ export default function ProfileScreen() {
 
             <View className="mt-2 border-t border-slate-100 pt-4">
               <Text className="mb-1 text-xs text-gray-500">
-                Estimated Tax (at{" "}
-                {Math.round(summary.taxRate * 100)}
+                Estimated Tax (at {Math.round(summary.taxRate * 100)}
                 %)
               </Text>
               <Text className="mb-2 text-lg font-semibold text-slate-800">
@@ -165,6 +211,44 @@ export default function ProfileScreen() {
                   <Text className="text-base font-semibold text-amber-600">
                     {formatCurrency(summary.remainingTax)}
                   </Text>
+                </View>
+              </View>
+
+              <View className="mt-4">
+                <Text className="mb-1 text-xs text-gray-500">
+                  Record Tax Payment
+                </Text>
+                <View className="flex-row items-center gap-2">
+                  <View className="flex-1">
+                    <TextInput
+                      className={`rounded-lg border bg-white px-3 py-2 text-base text-slate-800 ${
+                        taxPaymentError ? "border-red-400" : "border-slate-300"
+                      }`}
+                      value={taxPaymentAmount}
+                      onChangeText={(text) => {
+                        setTaxPaymentAmount(text);
+                        if (taxPaymentError) {
+                          setTaxPaymentError(null);
+                        }
+                      }}
+                      placeholder="Amount paid (e.g., 500)"
+                      keyboardType="decimal-pad"
+                    />
+                    {taxPaymentError && (
+                      <Text className="mt-1 text-xs text-red-500">
+                        {taxPaymentError}
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    className="items-center justify-center rounded-lg bg-blue-500 px-4 py-3"
+                    onPress={handleSaveTaxPayment}
+                    disabled={savingTaxPayment}
+                  >
+                    <Text className="text-xs font-semibold text-white">
+                      {savingTaxPayment ? "Saving..." : "Add"}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
@@ -214,4 +298,3 @@ export default function ProfileScreen() {
     </ScrollView>
   );
 }
-

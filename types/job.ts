@@ -35,6 +35,15 @@ export interface Signature {
   createdAt: string;
 }
 
+export interface Expense {
+  id: string;
+  jobId: string | null;
+  category: string | null;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+}
+
 export interface JobWithDetails extends Job {
   notes: Note[];
   photos: Photo[];

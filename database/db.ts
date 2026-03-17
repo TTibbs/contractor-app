@@ -1,4 +1,4 @@
-import { Job, JobWithDetails, Note, Photo, Signature } from "@/types/job";
+import { Expense, Job, JobWithDetails, Note, Photo, Signature } from "@/types/job";
 import * as SQLite from "expo-sqlite";
 
 let db: SQLite.SQLiteDatabase | null = null;
@@ -55,6 +55,7 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
 
     CREATE TABLE IF NOT EXISTS expenses (
       id TEXT PRIMARY KEY,
+      jobId TEXT,
       category TEXT,
       amount REAL NOT NULL,
       note TEXT,
@@ -83,6 +84,21 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
 
     CREATE INDEX IF NOT EXISTS idx_jobs_createdAt ON jobs(createdAt);
   `);
+
+    // Best-effort migration: add jobId to existing expenses table if it doesn't exist yet.
+    try {
+      const pragma = await database.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(expenses)",
+      );
+      const hasJobId = pragma.some((col) => col.name === "jobId");
+      if (!hasJobId) {
+        await database.execAsync(
+          "ALTER TABLE expenses ADD COLUMN jobId TEXT",
+        );
+      }
+    } catch {
+      // Ignore migration errors; the app can continue without per-job expenses.
+    }
 
     db = database;
     return database;
@@ -325,6 +341,71 @@ export async function getSignatureByJobId(
     [jobId],
   );
   return row ?? null;
+}
+
+export interface NewExpenseInput {
+  amount: number;
+  jobId?: string | null;
+  category?: string | null;
+  note?: string | null;
+  createdAt?: string;
+}
+
+export async function addExpense(input: NewExpenseInput): Promise<void> {
+  const database = await ensureDatabase();
+
+  const id = Math.random().toString(36).substring(7);
+  const createdAt = input.createdAt ?? new Date().toISOString();
+
+  await database.runAsync(
+    "INSERT INTO expenses (id, jobId, category, amount, note, createdAt) VALUES (?, ?, ?, ?, ?, ?)",
+    [
+      id,
+      input.jobId ?? null,
+      input.category ?? null,
+      input.amount,
+      input.note ?? null,
+      createdAt,
+    ],
+  );
+}
+
+export async function getTotalExpensesForJob(jobId: string): Promise<number> {
+  const database = await ensureDatabase();
+  const row = await database.getFirstAsync<{ total: number | null }>(
+    "SELECT SUM(amount) as total FROM expenses WHERE jobId = ?",
+    [jobId],
+  );
+  return row?.total ?? 0;
+}
+
+export async function getExpensesForJob(jobId: string): Promise<Expense[]> {
+  const database = await ensureDatabase();
+  const rows = await database.getAllAsync<Expense>(
+    "SELECT * FROM expenses WHERE jobId = ? ORDER BY createdAt DESC",
+    [jobId],
+  );
+  return rows;
+}
+
+export interface NewTaxPaymentInput {
+  amount: number;
+  note?: string | null;
+  paidAt?: string;
+}
+
+export async function addTaxPayment(
+  input: NewTaxPaymentInput,
+): Promise<void> {
+  const database = await ensureDatabase();
+
+  const id = Math.random().toString(36).substring(7);
+  const paidAt = input.paidAt ?? new Date().toISOString();
+
+  await database.runAsync(
+    "INSERT INTO tax_payments (id, amount, note, paidAt) VALUES (?, ?, ?, ?)",
+    [id, input.amount, input.note ?? null, paidAt],
+  );
 }
 
 export async function getSetting(key: string): Promise<string | null> {
