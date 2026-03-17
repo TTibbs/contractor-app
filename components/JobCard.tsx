@@ -4,9 +4,10 @@ import { Text, TouchableOpacity, View } from "react-native";
 interface JobCardProps {
   job: Job;
   onPress: () => void;
+  onLongPress?: () => void;
 }
 
-export function JobCard({ job, onPress }: JobCardProps) {
+export function JobCard({ job, onPress, onLongPress }: JobCardProps) {
   const statusBgClass =
     job.status === "pending"
       ? "bg-amber-500"
@@ -24,6 +25,7 @@ export function JobCard({ job, onPress }: JobCardProps) {
     <TouchableOpacity
       className="mx-4 my-4 rounded-2xl bg-white p-4 shadow-md"
       onPress={onPress}
+      onLongPress={onLongPress}
     >
       <View className="mb-2 flex-row items-center justify-between">
         <Text className="flex-1 text-lg font-semibold text-slate-800">

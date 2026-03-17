@@ -1,5 +1,5 @@
 import { JobCard } from "@/components/JobCard";
-import { getActiveJobs, getCompletedJobs } from "@/database/db";
+import { deleteJob, getActiveJobs, getCompletedJobs } from "@/database/db";
 import { Job } from "@/types/job";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -41,6 +41,37 @@ export default function JobListScreen() {
 
   const handleJobPress = (jobId: string) => {
     router.push(`/job/${jobId}`);
+  };
+
+  const handleJobLongPress = (job: Job) => {
+    // Use a native-style confirm dialog before deleting
+    // to avoid accidental long-press removals.
+    // We keep the copy short and clear.
+    const { Alert } = require("react-native") as typeof import("react-native");
+
+    Alert.alert(
+      "Delete job?",
+      "This will remove the job and its notes and photos. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteJob(job.id);
+              await loadJobs(viewMode);
+            } catch (err) {
+              console.error("Failed to delete job", err);
+              Alert.alert(
+                "Error",
+                "Could not delete this job. Please try again.",
+              );
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleSwitchMode = (mode: "active" | "completed") => {
@@ -128,7 +159,11 @@ export default function JobListScreen() {
           data={jobs}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <JobCard job={item} onPress={() => handleJobPress(item.id)} />
+            <JobCard
+              job={item}
+              onPress={() => handleJobPress(item.id)}
+              onLongPress={() => handleJobLongPress(item)}
+            />
           )}
           contentContainerStyle={{ paddingVertical: 8 }}
         />
