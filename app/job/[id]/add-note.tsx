@@ -1,9 +1,10 @@
-import { JobHeader } from "@/components/jobs/details/JobHeader";
 import { FormButtonRow } from "@/components/forms/FormButtonRow";
+import { JobHeader } from "@/components/jobs/details/JobHeader";
 import { addNote } from "@/database/db";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, Text, TextInput, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AddNoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -40,7 +41,7 @@ export default function AddNoteScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <SafeAreaView className="flex-1 bg-slate-50">
       <JobHeader title="Add Note" onBack={() => router.back()} />
 
       <View className="flex-1 p-4">
@@ -60,9 +61,7 @@ export default function AddNoteScreen() {
           autoFocus
           textAlignVertical="top"
         />
-        {error && (
-          <Text className="mt-1 text-xs text-red-500">{error}</Text>
-        )}
+        {error && <Text className="mt-1 text-xs text-red-500">{error}</Text>}
 
         <View className="mt-4">
           <FormButtonRow
@@ -73,6 +72,6 @@ export default function AddNoteScreen() {
           />
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

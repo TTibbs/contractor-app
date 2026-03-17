@@ -23,7 +23,7 @@ export function SegmentedControl({
         return (
           <TouchableOpacity
             key={option.key}
-            className={`flex-1 items-center rounded-full px-3 py-2 ${
+            className={`flex-1 items-center rounded-l-lg rounded-r-lg px-3 py-2 ${
               isActive ? "bg-blue-500" : "bg-transparent"
             }`}
             onPress={() => {
@@ -45,4 +45,3 @@ export function SegmentedControl({
     </View>
   );
 }
-

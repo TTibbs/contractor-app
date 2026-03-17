@@ -4,7 +4,6 @@ import { TaxPaymentsCard } from "@/components/profile/TaxPaymentsCard";
 import { TaxSettingsModal } from "@/components/profile/TaxSettingsModal";
 import { ErrorState } from "@/components/ScreenState/ErrorState";
 import { LoadingState } from "@/components/ScreenState/LoadingState";
-import { ExpenseRow, TaxPayment, TaxSummary } from "@/types/profile";
 import {
   addTaxPayment,
   getAllExpenses,
@@ -16,6 +15,7 @@ import {
   getYearToDateTaxPaid,
   setTaxRate,
 } from "@/database/db";
+import { ExpenseRow, TaxPayment, TaxSummary } from "@/types/profile";
 import { useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
@@ -102,9 +102,7 @@ export default function ProfileScreen() {
     }).format(value);
 
   if (loading && !summary) {
-    return (
-      <LoadingState message="Loading business dashboard..." />
-    );
+    return <LoadingState message="Loading business dashboard..." />;
   }
 
   if (error && !summary) {

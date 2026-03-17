@@ -32,6 +32,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -477,7 +478,7 @@ export default function JobDetailsScreen() {
   }
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <SafeAreaView className="flex-1 bg-slate-50">
       <JobHeader onBack={() => router.back()} />
 
       <ScrollView className="flex-1">
@@ -572,6 +573,6 @@ export default function JobDetailsScreen() {
         }}
         onSave={handleSaveEditedNote}
       />
-    </View>
+    </SafeAreaView>
   );
 }

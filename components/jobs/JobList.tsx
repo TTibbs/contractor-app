@@ -1,7 +1,7 @@
+import { JobCard } from "@/components/JobCard";
 import { EmptyState } from "@/components/ScreenState/EmptyState";
 import { ErrorState } from "@/components/ScreenState/ErrorState";
 import { LoadingState } from "@/components/ScreenState/LoadingState";
-import { JobCard } from "@/components/JobCard";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { Job } from "@/types/job";
 import { FlatList, View } from "react-native";
@@ -59,9 +59,7 @@ export function JobList({
           }
         />
       )}
-      {!loading && error && jobs.length === 0 && (
-        <ErrorState message={error} />
-      )}
+      {!loading && error && jobs.length === 0 && <ErrorState message={error} />}
       {!loading && !error && jobs.length === 0 && (
         <EmptyState title={emptyMessage.title} body={emptyMessage.body} />
       )}
@@ -76,10 +74,9 @@ export function JobList({
               onLongPress={() => onLongPressJob(item)}
             />
           )}
-          contentContainerStyle={{ paddingVertical: 8 }}
+          contentContainerStyle={{ gap: 8, paddingHorizontal: 8 }}
         />
       )}
     </View>
   );
 }
-

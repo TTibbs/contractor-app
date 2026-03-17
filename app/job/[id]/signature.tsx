@@ -4,11 +4,12 @@ import {
   getJobSignature,
   saveSignatureForJob,
 } from "@/services/signatureService";
+import * as FileSystem from "expo-file-system/legacy";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { Alert, Text, TouchableOpacity, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import Signature from "react-native-signature-canvas";
-import * as FileSystem from "expo-file-system/legacy";
 
 export default function JobSignatureScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -54,7 +55,7 @@ export default function JobSignatureScreen() {
       setSaving(true);
       // signature is a base64-encoded PNG without the data URL prefix
       await saveSignatureForJob(id, signature);
-       // keep local state in sync so if this screen stays mounted, we see latest signature
+      // keep local state in sync so if this screen stays mounted, we see latest signature
       setInitialDataUrl(
         signature.startsWith("data:")
           ? signature
@@ -74,16 +75,14 @@ export default function JobSignatureScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <SafeAreaView className="flex-1 bg-slate-50">
       <JobHeader
         title="Client Signature"
         onBack={() => router.back()}
         backDisabled={saving}
       />
 
-      {loading && (
-        <LoadingState message="Loading existing signature..." />
-      )}
+      {loading && <LoadingState message="Loading existing signature..." />}
 
       {!loading && (
         <View className="m-4 flex-1 rounded-2xl shadow-md">
@@ -139,6 +138,6 @@ export default function JobSignatureScreen() {
           </View>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
