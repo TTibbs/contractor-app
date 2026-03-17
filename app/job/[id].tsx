@@ -481,7 +481,7 @@ export default function JobDetailsScreen() {
     <SafeAreaView className="flex-1 bg-slate-50">
       <JobHeader onBack={() => router.back()} />
 
-      <ScrollView className="flex-1">
+      <ScrollView className="flex-1 p-1">
         <JobSummaryCard
           job={job}
           isEditing={isEditing}
@@ -500,7 +500,7 @@ export default function JobDetailsScreen() {
           onTogglePaid={handleTogglePaid}
         />
 
-        <View className="mb-3 flex-row items-center justify-between px-4">
+        <View className="mt-3 flex-row items-center justify-between px-4">
           <View>
             <Text className="mb-1 text-xs text-gray-500">Paid:</Text>
             <Text className="text-base text-slate-800">
