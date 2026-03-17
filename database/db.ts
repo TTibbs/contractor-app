@@ -1,8 +1,17 @@
-import { Expense, Job, JobWithDetails, Note, Photo, Signature } from "@/types/job";
+import {
+  Expense,
+  Job,
+  JobWithDetails,
+  Note,
+  Photo,
+  Signature,
+} from "@/types/job";
 import * as SQLite from "expo-sqlite";
 
 let db: SQLite.SQLiteDatabase | null = null;
 let dbReady: Promise<SQLite.SQLiteDatabase> | null = null;
+
+export const DEFAULT_TAX_RATE = 0.2;
 
 export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
   // If a database instance already exists, reuse it
@@ -16,7 +25,7 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
   }
 
   dbReady = (async () => {
-    const database = await SQLite.openDatabaseAsync("contractorapptest.db");
+    const database = await SQLite.openDatabaseAsync("contractorapptest1.db");
 
     await database.execAsync(`
     PRAGMA foreign_keys = ON;
@@ -42,6 +51,7 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       jobId TEXT NOT NULL,
       text TEXT NOT NULL,
       createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL,
       FOREIGN KEY (jobId) REFERENCES jobs(id) ON DELETE CASCADE
     );
 
@@ -92,9 +102,7 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       );
       const hasJobId = pragma.some((col) => col.name === "jobId");
       if (!hasJobId) {
-        await database.execAsync(
-          "ALTER TABLE expenses ADD COLUMN jobId TEXT",
-        );
+        await database.execAsync("ALTER TABLE expenses ADD COLUMN jobId TEXT");
       }
     } catch {
       // Ignore migration errors; the app can continue without per-job expenses.
@@ -152,6 +160,40 @@ export async function getYearToDateIncome(year: number): Promise<number> {
   return row?.total ?? 0;
 }
 
+export interface PaidVsUnpaidTotals {
+  paidTotal: number;
+  unpaidTotal: number;
+}
+
+export async function getPaidVsUnpaidJobTotals(
+  year: number,
+): Promise<PaidVsUnpaidTotals> {
+  const database = await ensureDatabase();
+  const from = new Date(year, 0, 1).toISOString();
+  const to = new Date(year + 1, 0, 1).toISOString();
+
+  const row = await database.getFirstAsync<{
+    paidTotal: number | null;
+    unpaidTotal: number | null;
+  }>(
+    `
+    SELECT
+      SUM(CASE WHEN paid = 1 THEN price ELSE 0 END) AS paidTotal,
+      SUM(CASE WHEN paid = 0 THEN price ELSE 0 END) AS unpaidTotal
+    FROM jobs
+    WHERE status = 'completed'
+      AND createdAt >= ?
+      AND createdAt < ?
+  `,
+    [from, to],
+  );
+
+  return {
+    paidTotal: row?.paidTotal ?? 0,
+    unpaidTotal: row?.unpaidTotal ?? 0,
+  };
+}
+
 export async function getYearToDateExpenses(year: number): Promise<number> {
   const database = await ensureDatabase();
   const from = new Date(year, 0, 1).toISOString();
@@ -161,6 +203,34 @@ export async function getYearToDateExpenses(year: number): Promise<number> {
     [from, to],
   );
   return row?.total ?? 0;
+}
+
+export interface ExpenseWithJob {
+  id: string;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+  jobId: string | null;
+  jobTitle: string | null;
+}
+
+export async function getAllExpenses(): Promise<ExpenseWithJob[]> {
+  const database = await ensureDatabase();
+  const rows = await database.getAllAsync<ExpenseWithJob>(
+    `
+    SELECT
+      e.id,
+      e.amount,
+      e.note,
+      e.createdAt,
+      e.jobId,
+      j.title AS jobTitle
+    FROM expenses e
+    LEFT JOIN jobs j ON e.jobId = j.id
+    ORDER BY e.createdAt DESC
+  `,
+  );
+  return rows;
 }
 
 export async function getYearToDateTaxPaid(year: number): Promise<number> {
@@ -268,7 +338,7 @@ export async function updateJob(job: Job): Promise<void> {
   const database = await ensureDatabase();
   const updatedAt = new Date().toISOString();
   await database.runAsync(
-    "UPDATE jobs SET title = ?, clientName = ?, address = ?, description = ?, price = ?, status = ?, updatedAt = ?, synced = 0 WHERE id = ?",
+    "UPDATE jobs SET title = ?, clientName = ?, address = ?, description = ?, price = ?, status = ?, vatIncluded = ?, taxRate = ?, paid = ?, updatedAt = ?, synced = 0 WHERE id = ?",
     [
       job.title,
       job.clientName,
@@ -276,6 +346,9 @@ export async function updateJob(job: Job): Promise<void> {
       job.description,
       job.price ?? null,
       job.status,
+      job.vatIncluded ?? 0,
+      job.taxRate ?? null,
+      job.paid ?? 0,
       updatedAt,
       job.id,
     ],
@@ -287,13 +360,27 @@ export async function addNote(jobId: string, text: string): Promise<Note> {
 
   const id = Math.random().toString(36).substring(7);
   const createdAt = new Date().toISOString();
+  const updatedAt = createdAt;
 
   await database.runAsync(
-    "INSERT INTO notes (id, jobId, text, createdAt) VALUES (?, ?, ?, ?)",
-    [id, jobId, text, createdAt],
+    "INSERT INTO notes (id, jobId, text, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)",
+    [id, jobId, text, createdAt, updatedAt],
   );
 
-  return { id, jobId, text, createdAt };
+  return { id, jobId, text, createdAt, updatedAt };
+}
+
+export async function updateNote(note: Note): Promise<Note> {
+  const database = await ensureDatabase();
+  const updatedAt = new Date().toISOString();
+  await database.runAsync(
+    "UPDATE notes SET text = ?, updatedAt = ? WHERE id = ?",
+    [note.text, updatedAt, note.id],
+  );
+  return {
+    ...note,
+    updatedAt,
+  };
 }
 
 export async function deleteNote(id: string): Promise<void> {
@@ -306,13 +393,14 @@ export async function addPhoto(jobId: string, uri: string): Promise<Photo> {
 
   const id = Math.random().toString(36).substring(7);
   const createdAt = new Date().toISOString();
+  const updatedAt = createdAt;
 
   await database.runAsync(
     "INSERT INTO photos (id, jobId, uri, createdAt) VALUES (?, ?, ?, ?)",
     [id, jobId, uri, createdAt],
   );
 
-  return { id, jobId, uri, createdAt };
+  return { id, jobId, uri, createdAt, updatedAt };
 }
 
 export async function addSignature(
@@ -323,13 +411,14 @@ export async function addSignature(
 
   const id = Math.random().toString(36).substring(7);
   const createdAt = new Date().toISOString();
+  const updatedAt = createdAt;
 
   await database.runAsync(
     "INSERT INTO signatures (id, jobId, uri, createdAt) VALUES (?, ?, ?, ?)",
     [id, jobId, uri, createdAt],
   );
 
-  return { id, jobId, uri, createdAt };
+  return { id, jobId, uri, createdAt, updatedAt };
 }
 
 export async function getSignatureByJobId(
@@ -394,9 +483,7 @@ export interface NewTaxPaymentInput {
   paidAt?: string;
 }
 
-export async function addTaxPayment(
-  input: NewTaxPaymentInput,
-): Promise<void> {
+export async function addTaxPayment(input: NewTaxPaymentInput): Promise<void> {
   const database = await ensureDatabase();
 
   const id = Math.random().toString(36).substring(7);
@@ -423,6 +510,27 @@ export async function setSetting(key: string, value: string): Promise<void> {
     "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
     [key, value],
   );
+}
+
+export async function getTaxRate(): Promise<number> {
+  const stored = await getSetting("taxRate");
+  if (!stored) {
+    return DEFAULT_TAX_RATE;
+  }
+
+  const parsed = Number(stored);
+  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
+    return DEFAULT_TAX_RATE;
+  }
+
+  return parsed;
+}
+
+export async function setTaxRate(rate: number): Promise<void> {
+  if (!Number.isFinite(rate) || rate < 0 || rate > 1) {
+    throw new Error("Invalid tax rate");
+  }
+  await setSetting("taxRate", String(rate));
 }
 
 export async function getNextInvoiceNumber(): Promise<number> {

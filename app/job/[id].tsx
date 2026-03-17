@@ -9,11 +9,11 @@ import {
   updateJob,
   updateJobPaidStatus,
   updateJobStatus,
+  updateNote,
 } from "@/database/db";
-import { Expense } from "@/types/job";
 import { generateInvoiceForJob } from "@/services/invoiceService";
 import { getJobSignature } from "@/services/signatureService";
-import { JobWithDetails } from "@/types/job";
+import { Expense, JobWithDetails, Note } from "@/types/job";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import {
@@ -21,12 +21,14 @@ import {
   Camera,
   Check,
   FileText,
+  Pencil,
   Trash2,
 } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   ScrollView,
   Switch,
   Text,
@@ -55,6 +57,9 @@ export default function JobDetailsScreen() {
   const [expenseError, setExpenseError] = useState<string | null>(null);
   const [jobExpensesTotal, setJobExpensesTotal] = useState(0);
   const [jobExpenses, setJobExpenses] = useState<Expense[]>([]);
+  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -277,6 +282,37 @@ export default function JobDetailsScreen() {
         },
       ],
     );
+  };
+
+  const beginEditNote = (note: Note) => {
+    setEditingNote(note);
+    setEditingNoteText(note.text);
+  };
+
+  const handleSaveEditedNote = async () => {
+    if (!editingNote) return;
+
+    const trimmed = editingNoteText.trim();
+    if (!trimmed) {
+      Alert.alert("Missing text", "Please enter some text for the note.");
+      return;
+    }
+
+    try {
+      setSavingNote(true);
+      await updateNote({
+        ...editingNote,
+        text: trimmed,
+      });
+      await loadJob();
+      setEditingNote(null);
+      setEditingNoteText("");
+    } catch (e) {
+      console.error("Failed to update note", e);
+      Alert.alert("Error", "Could not update this note. Please try again.");
+    } finally {
+      setSavingNote(false);
+    }
   };
 
   const handleSaveExpense = async () => {
@@ -740,12 +776,20 @@ export default function JobDetailsScreen() {
                     {new Date(note.createdAt).toLocaleString()}
                   </Text>
                 </View>
-                <TouchableOpacity
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  onPress={() => handleDeleteNote(note.id)}
-                >
-                  <Trash2 size={18} color="#9ca3af" />
-                </TouchableOpacity>
+                <View className="flex-row items-center gap-2">
+                  <TouchableOpacity
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => beginEditNote(note)}
+                  >
+                    <Pencil size={18} color="#6b7280" />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => handleDeleteNote(note.id)}
+                  >
+                    <Trash2 size={18} color="#9ca3af" />
+                  </TouchableOpacity>
+                </View>
               </View>
             </View>
           ))}
@@ -872,6 +916,62 @@ export default function JobDetailsScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={!!editingNote}
+        animationType="slide"
+        onRequestClose={() => {
+          if (!savingNote) {
+            setEditingNote(null);
+            setEditingNoteText("");
+          }
+        }}
+      >
+        <View className="flex-1 items-center justify-center bg-black/30 px-6">
+          <View className="w-full rounded-2xl bg-white p-5">
+            <Text className="mb-2 text-base font-semibold text-slate-800">
+              Edit note
+            </Text>
+            <Text className="mb-3 text-xs text-gray-500">
+              Update the text for this job note.
+            </Text>
+            <TextInput
+              className="h-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-800"
+              value={editingNoteText}
+              onChangeText={setEditingNoteText}
+              placeholder="Note details..."
+              multiline
+              textAlignVertical="top"
+            />
+            <View className="mt-4 flex-row gap-2">
+              <TouchableOpacity
+                className="flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3"
+                onPress={() => {
+                  if (!savingNote) {
+                    setEditingNote(null);
+                    setEditingNoteText("");
+                  }
+                }}
+                disabled={savingNote}
+              >
+                <Text className="text-sm font-semibold text-gray-600">
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 items-center justify-center rounded-lg bg-blue-500 px-4 py-3"
+                onPress={handleSaveEditedNote}
+                disabled={savingNote}
+              >
+                <Text className="text-sm font-semibold text-white">
+                  {savingNote ? "Saving..." : "Save note"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

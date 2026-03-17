@@ -19,6 +19,7 @@ export interface Note {
   jobId: string;
   text: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Photo {
@@ -26,6 +27,7 @@ export interface Photo {
   jobId: string;
   uri: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Signature {
@@ -33,6 +35,7 @@ export interface Signature {
   jobId: string;
   uri: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface Expense {
@@ -42,6 +45,7 @@ export interface Expense {
   amount: number;
   note: string | null;
   createdAt: string;
+  updatedAt: string;
 }
 
 export interface JobWithDetails extends Job {
