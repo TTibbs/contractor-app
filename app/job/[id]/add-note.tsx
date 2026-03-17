@@ -8,17 +8,30 @@ export default function AddNoteScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [noteText, setNoteText] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   const handleSave = async () => {
-    if (!noteText.trim()) {
-      Alert.alert("Error", "Please enter a note");
+    const trimmed = noteText.trim();
+
+    if (!trimmed) {
+      setError("Please enter a note.");
+      Alert.alert("Missing note", "Add a few words so this note is useful.");
+      return;
+    }
+
+    if (trimmed.length < 3) {
+      setError("Note is too short to be useful.");
+      Alert.alert(
+        "Note too short",
+        "Please add a bit more detail so you remember what this was about.",
+      );
       return;
     }
 
     if (!id) return;
 
     try {
-      await addNote(id, noteText.trim());
+      await addNote(id, trimmed);
       router.back();
     } catch (error) {
       Alert.alert("Error", "Failed to save note");
@@ -37,14 +50,24 @@ export default function AddNoteScreen() {
 
       <View className="flex-1 p-4">
         <TextInput
-          className="h-52 rounded-lg border border-slate-300 bg-white px-3 py-3 text-base text-slate-800"
+          className={`h-52 rounded-lg border bg-white px-3 py-3 text-base text-slate-800 ${
+            error ? "border-red-400" : "border-slate-300"
+          }`}
           value={noteText}
-          onChangeText={setNoteText}
+          onChangeText={(text) => {
+            setNoteText(text);
+            if (error) {
+              setError(null);
+            }
+          }}
           placeholder="Enter your note..."
           multiline
           autoFocus
           textAlignVertical="top"
         />
+        {error && (
+          <Text className="mt-1 text-xs text-red-500">{error}</Text>
+        )}
 
         <View className="mt-4 flex-row space-x-3">
           <TouchableOpacity

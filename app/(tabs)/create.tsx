@@ -17,10 +17,52 @@ export default function CreateJobScreen() {
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+  const [errors, setErrors] = useState<{
+    title?: string;
+    clientName?: string;
+    price?: string;
+  }>({});
+
+  const validate = () => {
+    const nextErrors: {
+      title?: string;
+      clientName?: string;
+      price?: string;
+    } = {};
+
+    const trimmedTitle = title.trim();
+    const trimmedClientName = clientName.trim();
+    const trimmedPrice = price.trim();
+
+    if (!trimmedTitle) {
+      nextErrors.title = "Job title is required.";
+    } else if (trimmedTitle.length < 3) {
+      nextErrors.title = "Job title should be at least 3 characters.";
+    }
+
+    if (!trimmedClientName) {
+      nextErrors.clientName = "Client name is required.";
+    } else if (trimmedClientName.length < 2) {
+      nextErrors.clientName = "Client name should be at least 2 characters.";
+    }
+
+    if (trimmedPrice) {
+      const numeric = Number(trimmedPrice.replace(/,/g, ""));
+      if (Number.isNaN(numeric) || numeric < 0) {
+        nextErrors.price = "Enter a valid, non‑negative number.";
+      }
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
 
   const handleSave = async () => {
-    if (!title.trim() || !clientName.trim()) {
-      Alert.alert("Error", "Please fill in job title and client name");
+    if (!validate()) {
+      Alert.alert(
+        "Check job details",
+        "Please fix the highlighted fields before saving.",
+      );
       return;
     }
 
@@ -30,7 +72,7 @@ export default function CreateJobScreen() {
         clientName: clientName.trim(),
         address: address.trim(),
         description: description.trim(),
-        price: price ? parseFloat(price) : undefined,
+        price: price ? parseFloat(price.replace(/,/g, "")) : undefined,
         status: "pending",
       });
 
@@ -39,6 +81,7 @@ export default function CreateJobScreen() {
       setAddress("");
       setDescription("");
       setPrice("");
+      setErrors({});
 
       router.push("/(tabs)");
     } catch (error) {
@@ -64,11 +107,21 @@ export default function CreateJobScreen() {
             Job Title *
           </Text>
           <TextInput
-            className="rounded-lg border border-slate-300 bg-white px-3 py-3 text-base text-slate-800"
+            className={`rounded-lg border bg-white px-3 py-3 text-base text-slate-800 ${
+              errors.title ? "border-red-400" : "border-slate-300"
+            }`}
             value={title}
-            onChangeText={setTitle}
+            onChangeText={(text) => {
+              setTitle(text);
+              if (errors.title) {
+                setErrors((prev) => ({ ...prev, title: undefined }));
+              }
+            }}
             placeholder="e.g., Boiler Repair"
           />
+          {errors.title && (
+            <Text className="mt-1 text-xs text-red-500">{errors.title}</Text>
+          )}
         </View>
 
         <View className="mb-4">
@@ -76,11 +129,23 @@ export default function CreateJobScreen() {
             Client Name *
           </Text>
           <TextInput
-            className="rounded-lg border border-slate-300 bg-white px-3 py-3 text-base text-slate-800"
+            className={`rounded-lg border bg-white px-3 py-3 text-base text-slate-800 ${
+              errors.clientName ? "border-red-400" : "border-slate-300"
+            }`}
             value={clientName}
-            onChangeText={setClientName}
+            onChangeText={(text) => {
+              setClientName(text);
+              if (errors.clientName) {
+                setErrors((prev) => ({ ...prev, clientName: undefined }));
+              }
+            }}
             placeholder="e.g., John Smith"
           />
+          {errors.clientName && (
+            <Text className="mt-1 text-xs text-red-500">
+              {errors.clientName}
+            </Text>
+          )}
         </View>
 
         <View className="mb-4">
@@ -115,12 +180,22 @@ export default function CreateJobScreen() {
             Estimated Price
           </Text>
           <TextInput
-            className="rounded-lg border border-slate-300 bg-white px-3 py-3 text-base text-slate-800"
+            className={`rounded-lg border bg-white px-3 py-3 text-base text-slate-800 ${
+              errors.price ? "border-red-400" : "border-slate-300"
+            }`}
             value={price}
-            onChangeText={setPrice}
+            onChangeText={(text) => {
+              setPrice(text);
+              if (errors.price) {
+                setErrors((prev) => ({ ...prev, price: undefined }));
+              }
+            }}
             placeholder="e.g., 250"
             keyboardType="decimal-pad"
           />
+          {errors.price && (
+            <Text className="mt-1 text-xs text-red-500">{errors.price}</Text>
+          )}
         </View>
 
         <View className="mt-6 flex-row space-x-3">
