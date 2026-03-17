@@ -2,6 +2,7 @@ import { PhotoThumbnail } from "@/components/PhotoThumbnail";
 import {
   addPhoto,
   getJobById,
+  updateJob,
   updateJobPaidStatus,
   updateJobStatus,
 } from "@/database/db";
@@ -17,6 +18,7 @@ import {
   ScrollView,
   Switch,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -30,6 +32,12 @@ export default function JobDetailsScreen() {
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editClientName, setEditClientName] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPrice, setEditPrice] = useState("");
 
   useFocusEffect(
     useCallback(() => {
@@ -228,6 +236,68 @@ export default function JobDetailsScreen() {
     Alert.alert("Job Summary", summary);
   };
 
+  const beginEdit = () => {
+    if (!job) return;
+    setEditTitle(job.title);
+    setEditClientName(job.clientName);
+    setEditAddress(job.address);
+    setEditDescription(job.description ?? "");
+    setEditPrice(job.price != null ? String(job.price) : "");
+    setIsEditing(true);
+  };
+
+  const cancelEdit = () => {
+    setIsEditing(false);
+  };
+
+  const saveEdit = async () => {
+    if (!job) return;
+
+    const trimmedTitle = editTitle.trim();
+    const trimmedClientName = editClientName.trim();
+
+    if (!trimmedTitle || !trimmedClientName) {
+      Alert.alert(
+        "Missing details",
+        "Please fill in both job title and client name.",
+      );
+      return;
+    }
+
+    let numericPrice: number | undefined;
+    const trimmedPrice = editPrice.trim();
+    if (trimmedPrice) {
+      const parsed = Number(trimmedPrice.replace(/,/g, ""));
+      if (Number.isNaN(parsed) || parsed < 0) {
+        Alert.alert(
+          "Invalid price",
+          "Please enter a valid, non‑negative number for the price.",
+        );
+        return;
+      }
+      numericPrice = parsed;
+    }
+
+    try {
+      setLoading(true);
+      await updateJob({
+        ...job,
+        title: trimmedTitle,
+        clientName: trimmedClientName,
+        address: editAddress.trim(),
+        description: editDescription.trim(),
+        price: numericPrice,
+      });
+      await loadJob();
+      setIsEditing(false);
+    } catch (e) {
+      console.error("Failed to update job", e);
+      Alert.alert("Error", "Could not update the job. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!job && loading) {
     return (
       <View className="flex-1 items-center justify-center bg-slate-50 px-5">
@@ -312,9 +382,39 @@ export default function JobDetailsScreen() {
 
       <ScrollView className="flex-1">
         <View className="mx-4 my-4 rounded-2xl bg-white p-4 shadow-md">
-          <Text className="mb-3 text-2xl font-bold text-slate-800">
-            {job.title}
-          </Text>
+          {isEditing ? (
+            <>
+              <Text className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Editing job
+              </Text>
+              <Text className="mb-1 text-xs text-gray-500">Job Title</Text>
+              <TextInput
+                className="mb-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-800"
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholder="Job title"
+              />
+              <Text className="mb-1 text-xs text-gray-500">Client</Text>
+              <TextInput
+                className="mb-3 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-800"
+                value={editClientName}
+                onChangeText={setEditClientName}
+                placeholder="Client name"
+              />
+            </>
+          ) : (
+            <>
+              <Text className="mb-3 text-2xl font-bold text-slate-800">
+                {job.title}
+              </Text>
+              <View className="mb-3">
+                <Text className="mb-1 text-xs text-gray-500">Client:</Text>
+                <Text className="text-base text-slate-800">
+                  {job.clientName}
+                </Text>
+              </View>
+            </>
+          )}
           <View
             className={`mb-4 self-start rounded-xl px-3 py-1.5 ${statusBgClass}`}
           >
@@ -329,19 +429,14 @@ export default function JobDetailsScreen() {
             </Text>
           )}
 
-          <View className="mb-3">
-            <Text className="mb-1 text-xs text-gray-500">Client:</Text>
-            <Text className="text-base text-slate-800">{job.clientName}</Text>
-          </View>
-
-          {job.address && (
+          {!isEditing && job.address && (
             <View className="mb-3">
               <Text className="mb-1 text-xs text-gray-500">Address:</Text>
               <Text className="text-base text-slate-800">{job.address}</Text>
             </View>
           )}
 
-          {job.description && (
+          {!isEditing && job.description && (
             <View className="mb-3">
               <Text className="mb-1 text-xs text-gray-500">Description:</Text>
               <Text className="text-base text-slate-800">
@@ -350,13 +445,48 @@ export default function JobDetailsScreen() {
             </View>
           )}
 
-          {job.price && (
+          {!isEditing && job.price && (
             <View className="mb-3">
               <Text className="mb-1 text-xs text-gray-500">Price:</Text>
               <Text className="text-base text-slate-800">
                 ${job.price.toFixed(2)}
               </Text>
             </View>
+          )}
+
+          {isEditing && (
+            <>
+              <View className="mb-3">
+                <Text className="mb-1 text-xs text-gray-500">Address</Text>
+                <TextInput
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-800"
+                  value={editAddress}
+                  onChangeText={setEditAddress}
+                  placeholder="Job address"
+                />
+              </View>
+              <View className="mb-3">
+                <Text className="mb-1 text-xs text-gray-500">Description</Text>
+                <TextInput
+                  className="h-24 rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-800"
+                  value={editDescription}
+                  onChangeText={setEditDescription}
+                  placeholder="Job details..."
+                  multiline
+                  textAlignVertical="top"
+                />
+              </View>
+              <View className="mb-3">
+                <Text className="mb-1 text-xs text-gray-500">Price</Text>
+                <TextInput
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base text-slate-800"
+                  value={editPrice}
+                  onChangeText={setEditPrice}
+                  placeholder="e.g., 250"
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </>
           )}
 
           <View className="mb-3 flex-row items-center justify-between">
@@ -461,6 +591,38 @@ export default function JobDetailsScreen() {
                 Mark Completed
               </Text>
             </TouchableOpacity>
+          )}
+          {!isEditing && (
+            <TouchableOpacity
+              className="flex-row items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-4"
+              onPress={beginEdit}
+            >
+              <Text className="text-base font-semibold text-blue-500">
+                Edit Job
+              </Text>
+            </TouchableOpacity>
+          )}
+          {isEditing && (
+            <View className="flex-row gap-3">
+              <TouchableOpacity
+                className="flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-4"
+                onPress={cancelEdit}
+                disabled={loading}
+              >
+                <Text className="text-base font-semibold text-gray-600">
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                className="flex-1 items-center justify-center rounded-lg bg-blue-500 px-4 py-4"
+                onPress={saveEdit}
+                disabled={loading}
+              >
+                <Text className="text-base font-semibold text-white">
+                  {loading ? "Saving..." : "Save Changes"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
           <TouchableOpacity
             className="flex-row items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-4"

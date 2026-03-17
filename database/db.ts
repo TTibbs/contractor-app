@@ -248,6 +248,24 @@ export async function updateJobStatus(
   );
 }
 
+export async function updateJob(job: Job): Promise<void> {
+  const database = await ensureDatabase();
+  const updatedAt = new Date().toISOString();
+  await database.runAsync(
+    "UPDATE jobs SET title = ?, clientName = ?, address = ?, description = ?, price = ?, status = ?, updatedAt = ?, synced = 0 WHERE id = ?",
+    [
+      job.title,
+      job.clientName,
+      job.address,
+      job.description,
+      job.price ?? null,
+      job.status,
+      updatedAt,
+      job.id,
+    ],
+  );
+}
+
 export async function addNote(jobId: string, text: string): Promise<Note> {
   const database = await ensureDatabase();
 
