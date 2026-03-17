@@ -1,16 +1,24 @@
 import { PhotoThumbnail } from "@/components/PhotoThumbnail";
 import {
   addPhoto,
+  deleteNote,
   getJobById,
   updateJob,
   updateJobPaidStatus,
   updateJobStatus,
 } from "@/database/db";
-import { JobWithDetails } from "@/types/job";
+import { generateInvoiceForJob } from "@/services/invoiceService";
 import { getJobSignature } from "@/services/signatureService";
+import { JobWithDetails } from "@/types/job";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, Camera, Check, FileText } from "lucide-react-native";
+import {
+  ArrowLeft,
+  Camera,
+  Check,
+  FileText,
+  Trash2,
+} from "lucide-react-native";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -22,7 +30,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { generateInvoiceForJob } from "@/services/invoiceService";
 
 export default function JobDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -124,10 +131,7 @@ export default function JobDetailsScreen() {
       }
     } catch (error) {
       console.error("Failed to generate invoice", error);
-      Alert.alert(
-        "Error",
-        "Could not generate the invoice. Please try again.",
-      );
+      Alert.alert("Error", "Could not generate the invoice. Please try again.");
     } finally {
       setGeneratingInvoice(false);
     }
@@ -141,10 +145,7 @@ export default function JobDetailsScreen() {
       await loadJob();
     } catch (error) {
       console.error("Failed to update paid status", error);
-      Alert.alert(
-        "Error",
-        "Could not update paid status. Please try again.",
-      );
+      Alert.alert("Error", "Could not update paid status. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -236,6 +237,32 @@ export default function JobDetailsScreen() {
     Alert.alert("Job Summary", summary);
   };
 
+  const handleDeleteNote = (noteId: string) => {
+    Alert.alert(
+      "Delete note?",
+      "This will permanently remove this note from the job.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteNote(noteId);
+              await loadJob();
+            } catch (e) {
+              console.error("Failed to delete note", e);
+              Alert.alert(
+                "Error",
+                "Could not delete this note. Please try again.",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const beginEdit = () => {
     if (!job) return;
     setEditTitle(job.title);
@@ -322,10 +349,7 @@ export default function JobDetailsScreen() {
         >
           <Text className="text-sm font-semibold text-white">Try again</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          className="mt-3"
-          onPress={() => router.back()}
-        >
+        <TouchableOpacity className="mt-3" onPress={() => router.back()}>
           <Text className="text-sm font-semibold text-blue-500">
             Go back to jobs
           </Text>
@@ -347,9 +371,7 @@ export default function JobDetailsScreen() {
           className="rounded-lg bg-blue-500 px-5 py-3"
           onPress={() => router.back()}
         >
-          <Text className="text-sm font-semibold text-white">
-            Back to jobs
-          </Text>
+          <Text className="text-sm font-semibold text-white">Back to jobs</Text>
         </TouchableOpacity>
       </View>
     );
@@ -522,10 +544,22 @@ export default function JobDetailsScreen() {
           </Text>
           {job.notes.map((note) => (
             <View key={note.id} className="mb-2 rounded-lg bg-white p-3">
-              <Text className="mb-1 text-sm text-slate-800">{note.text}</Text>
-              <Text className="text-xs text-gray-400">
-                {new Date(note.createdAt).toLocaleString()}
-              </Text>
+              <View className="flex-row items-center justify-between">
+                <View className="flex-1 pr-2">
+                  <Text className="mb-1 text-sm text-slate-800">
+                    {note.text}
+                  </Text>
+                  <Text className="text-xs text-gray-400">
+                    {new Date(note.createdAt).toLocaleString()}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  onPress={() => handleDeleteNote(note.id)}
+                >
+                  <Trash2 size={18} color="#9ca3af" />
+                </TouchableOpacity>
+              </View>
             </View>
           ))}
           <TouchableOpacity

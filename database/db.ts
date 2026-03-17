@@ -280,6 +280,11 @@ export async function addNote(jobId: string, text: string): Promise<Note> {
   return { id, jobId, text, createdAt };
 }
 
+export async function deleteNote(id: string): Promise<void> {
+  const database = await ensureDatabase();
+  await database.runAsync("DELETE FROM notes WHERE id = ?", [id]);
+}
+
 export async function addPhoto(jobId: string, uri: string): Promise<Photo> {
   const database = await ensureDatabase();
 
