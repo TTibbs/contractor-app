@@ -1,0 +1,120 @@
+import { getJobSignature, saveSignatureForJob } from "@/services/signatureService";
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useRef, useState } from "react";
+import { Alert, Text, TouchableOpacity, View } from "react-native";
+import Signature from "react-native-signature-canvas";
+import * as FileSystem from "expo-file-system/legacy";
+
+export default function JobSignatureScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const signatureRef = useRef<any>(null);
+  const [initialDataUrl, setInitialDataUrl] = useState<string | undefined>();
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadExistingSignature = async () => {
+        if (!id) return;
+        try {
+          const existing = await getJobSignature(id);
+          if (existing?.uri) {
+            const base64 = await FileSystem.readAsStringAsync(existing.uri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            setInitialDataUrl(`data:image/png;base64,${base64}`);
+          } else {
+            setInitialDataUrl(undefined);
+          }
+        } catch (error) {
+          console.warn("Failed to load existing signature", error);
+        }
+      };
+      loadExistingSignature();
+    }, [id]),
+  );
+
+  const handleOK = async (signature: string) => {
+    if (!id || saving) return;
+    try {
+      setSaving(true);
+      // signature is a base64-encoded PNG without the data URL prefix
+      await saveSignatureForJob(id, signature);
+       // keep local state in sync so if this screen stays mounted, we see latest signature
+      setInitialDataUrl(
+        signature.startsWith("data:")
+          ? signature
+          : `data:image/png;base64,${signature}`,
+      );
+      router.back();
+    } catch (error) {
+      console.error("Failed to save signature", error);
+      Alert.alert("Error", "Could not save the signature. Please try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEmpty = () => {
+    Alert.alert("No signature", "Please draw a signature before saving.");
+  };
+
+  return (
+    <View className="flex-1">
+      <View className="flex-row items-center justify-between border-b border-slate-200 bg-white px-4 pb-4 pt-14">
+        <TouchableOpacity disabled={saving} onPress={() => router.back()}>
+          <Text className="text-base text-blue-500">Back</Text>
+        </TouchableOpacity>
+        <Text className="text-lg font-semibold text-slate-800">
+          Client Signature
+        </Text>
+        <View className="w-10" />
+      </View>
+
+      <View className="m-4 flex-1 rounded-2xl shadow-md">
+        <View className="flex-1 overflow-hidden rounded-2xl">
+          <Signature
+            ref={signatureRef}
+            onOK={handleOK}
+            onEmpty={handleEmpty}
+            imageType="image/png"
+            dataURL={initialDataUrl}
+            webStyle={`
+              .m-signature-pad--footer { display: none; }
+              .m-signature-pad { box-shadow: none; border: 0; }
+              body,html { margin:0; padding:0; }
+              canvas { width:100% !important; height:100% !important; }
+            `}
+          />
+        </View>
+
+        <View className="mt-4 mb-2 flex-row justify-between px-4">
+          <TouchableOpacity
+            className="flex-1 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-3 mr-2"
+            disabled={saving}
+            onPress={() => {
+              if (signatureRef.current) {
+                signatureRef.current.clearSignature();
+              }
+            }}
+          >
+            <Text className="text-base font-semibold text-gray-700">Clear</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            className="flex-1 items-center justify-center rounded-lg bg-blue-500 px-4 py-3 ml-2"
+            disabled={saving}
+            onPress={() => {
+              if (signatureRef.current) {
+                signatureRef.current.readSignature();
+              }
+            }}
+          >
+            <Text className="text-base font-semibold text-white">
+              {saving ? "Saving..." : "Save"}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+}

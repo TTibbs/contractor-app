@@ -37,6 +37,8 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+SETUP.md
+todo.md
 
 # generated native folders
 /ios

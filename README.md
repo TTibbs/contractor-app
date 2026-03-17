@@ -1,50 +1,135 @@
-# Welcome to your Expo app 👋
+# JobTrack - Contractor Job Tracker
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A simple offline-first mobile app for contractors to track jobs, attach photos, and manage work progress.
 
-## Get started
+## Features
 
-1. Install dependencies
+- Create and track jobs with client information
+- Update job status (Pending → In Progress → Completed)
+- Add notes to jobs
+- Attach photos from camera or gallery
+- Generate job summaries
+- Offline-first with SQLite storage
 
-   ```bash
-   npm install
-   ```
+## Tech Stack
 
-2. Start the app
+- React Native with Expo
+- Expo Router for navigation
+- Expo SQLite for local database
+- Expo ImagePicker for photos
+- Lucide React Native for icons
 
-   ```bash
-   npx expo start
-   ```
+## Getting Started
 
-In the output, you'll find options to open the app in a
+### Prerequisites
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Node.js (v18 or newer)
+- Expo CLI
+- Expo Go app on your iOS/Android device
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Installation
 
-## Get a fresh project
-
-When you're ready, run:
+1. Install dependencies:
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Start the development server:
 
-## Learn more
+```bash
+npm run dev
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+3. Scan the QR code with:
+   - **iOS**: Camera app
+   - **Android**: Expo Go app
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Important Notes
 
-## Join the community
+**This app is designed for mobile devices (iOS/Android) only.**
 
-Join our community of developers creating universal apps.
+The app uses Expo SQLite for local storage, which works on iOS and Android but not on web. To test the app:
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. Use Expo Go on a physical device
+2. Or create a development build for iOS/Android
+
+## Project Structure
+
+```
+app/
+├── (tabs)/
+│   ├── index.tsx          # Job list screen
+│   ├── create.tsx         # Create job screen
+│   └── _layout.tsx        # Tab navigation
+├── job/
+│   ├── [id].tsx           # Job details screen
+│   └── [id]/
+│       └── add-note.tsx   # Add note screen
+└── _layout.tsx            # Root layout
+
+components/
+├── JobCard.tsx            # Job list item
+└── PhotoThumbnail.tsx     # Photo preview
+
+database/
+└── db.ts                  # SQLite database functions
+
+types/
+└── job.ts                 # TypeScript types
+```
+
+## Data Model
+
+### Job
+
+- id, title, clientName, address, description
+- price (optional), status, createdAt
+
+### Note
+
+- id, jobId, text, createdAt
+
+### Photo
+
+- id, jobId, uri, createdAt
+
+## App Flow
+
+1. **Jobs Tab** - View all jobs, tap to see details
+2. **New Job Tab** - Create a new job with client info
+3. **Job Details** - View job info, add notes, attach photos
+4. **Start/Complete** - Update job status
+5. **Generate Summary** - Create a text summary of the job
+
+## Running on Mobile
+
+### Using Expo Go (Recommended for Testing)
+
+1. Install Expo Go from App Store or Play Store
+2. Run `npm run dev`
+3. Scan the QR code
+
+### Creating a Production Build
+
+For production, create a development build:
+
+```bash
+npx expo install expo-dev-client
+npx expo run:ios
+# or
+npx expo run:android
+```
+
+## Future Enhancements
+
+- Cloud sync with Supabase
+- User authentication
+- PDF report generation
+- Job scheduling
+- Time tracking
+- Invoice generation
+
+## License
+
+MIT
