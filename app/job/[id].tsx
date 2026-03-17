@@ -12,6 +12,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Camera, Check, FileText } from "lucide-react-native";
 import { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   Switch,
@@ -27,6 +28,8 @@ export default function JobDetailsScreen() {
   const [job, setJob] = useState<JobWithDetails | null>(null);
   const [hasSignature, setHasSignature] = useState<boolean>(false);
   const [generatingInvoice, setGeneratingInvoice] = useState(false);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -38,26 +41,52 @@ export default function JobDetailsScreen() {
 
   const loadJob = async () => {
     if (!id) return;
-    const jobData = await getJobById(id);
-    setJob(jobData);
-    if (jobData) {
-      const signature = await getJobSignature(jobData.id);
-      setHasSignature(!!signature);
-    } else {
-      setHasSignature(false);
+    try {
+      setLoading(true);
+      setError(null);
+      const jobData = await getJobById(id);
+      setJob(jobData);
+      if (jobData) {
+        const signature = await getJobSignature(jobData.id);
+        setHasSignature(!!signature);
+      } else {
+        setHasSignature(false);
+        setError("We couldn't find this job. It may have been deleted.");
+      }
+    } catch (e) {
+      console.error("Failed to load job", e);
+      setError("Failed to load this job. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleStartJob = async () => {
     if (!job) return;
-    await updateJobStatus(job.id, "in_progress");
-    loadJob();
+    try {
+      setLoading(true);
+      await updateJobStatus(job.id, "in_progress");
+      await loadJob();
+    } catch (e) {
+      console.error("Failed to start job", e);
+      Alert.alert("Error", "Could not update job status. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleCompleteJob = async () => {
     if (!job) return;
-    await updateJobStatus(job.id, "completed");
-    loadJob();
+    try {
+      setLoading(true);
+      await updateJobStatus(job.id, "completed");
+      await loadJob();
+    } catch (e) {
+      console.error("Failed to complete job", e);
+      Alert.alert("Error", "Could not update job status. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddNote = () => {
@@ -99,6 +128,7 @@ export default function JobDetailsScreen() {
   const handleTogglePaid = async (value: boolean) => {
     if (!job) return;
     try {
+      setLoading(true);
       await updateJobPaidStatus(job.id, value);
       await loadJob();
     } catch (error) {
@@ -107,6 +137,8 @@ export default function JobDetailsScreen() {
         "Error",
         "Could not update paid status. Please try again.",
       );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,8 +152,19 @@ export default function JobDetailsScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      await addPhoto(job.id, result.assets[0].uri);
-      loadJob();
+      try {
+        setLoading(true);
+        await addPhoto(job.id, result.assets[0].uri);
+        await loadJob();
+      } catch (e) {
+        console.error("Failed to add photo", e);
+        Alert.alert(
+          "Error",
+          "Could not add the photo to this job. Please try again.",
+        );
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -143,8 +186,19 @@ export default function JobDetailsScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
-      await addPhoto(job.id, result.assets[0].uri);
-      loadJob();
+      try {
+        setLoading(true);
+        await addPhoto(job.id, result.assets[0].uri);
+        await loadJob();
+      } catch (e) {
+        console.error("Failed to add photo from camera", e);
+        Alert.alert(
+          "Error",
+          "Could not save the photo from your camera. Please try again.",
+        );
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -174,10 +228,59 @@ export default function JobDetailsScreen() {
     Alert.alert("Job Summary", summary);
   };
 
+  if (!job && loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-slate-50 px-5">
+        <ActivityIndicator size="large" />
+        <Text className="mt-4 text-sm text-gray-400">
+          Loading job details...
+        </Text>
+      </View>
+    );
+  }
+
+  if (!job && error) {
+    return (
+      <View className="flex-1 items-center justify-center bg-slate-50 px-5">
+        <Text className="mb-2 text-xl font-semibold text-red-500">
+          Something went wrong
+        </Text>
+        <Text className="mb-4 text-center text-sm text-gray-400">{error}</Text>
+        <TouchableOpacity
+          className="mt-2 rounded-lg bg-blue-500 px-5 py-3"
+          onPress={loadJob}
+        >
+          <Text className="text-sm font-semibold text-white">Try again</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          className="mt-3"
+          onPress={() => router.back()}
+        >
+          <Text className="text-sm font-semibold text-blue-500">
+            Go back to jobs
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (!job) {
     return (
-      <View className="flex-1 items-center justify-center">
-        <Text>Loading...</Text>
+      <View className="flex-1 items-center justify-center bg-slate-50 px-5">
+        <Text className="mb-2 text-xl font-semibold text-slate-800">
+          Job not found
+        </Text>
+        <Text className="mb-4 text-center text-sm text-gray-400">
+          We couldn't load this job. It may have been removed.
+        </Text>
+        <TouchableOpacity
+          className="rounded-lg bg-blue-500 px-5 py-3"
+          onPress={() => router.back()}
+        >
+          <Text className="text-sm font-semibold text-white">
+            Back to jobs
+          </Text>
+        </TouchableOpacity>
       </View>
     );
   }
