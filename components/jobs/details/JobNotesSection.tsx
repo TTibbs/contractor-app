@@ -21,7 +21,7 @@ export function JobNotesSection({
         Notes ({notes.length})
       </Text>
       {notes.map((note) => (
-        <View key={note.id} className="mb-2 rounded-lg bg-white p-3">
+        <View key={note.id} className="mb-2 rounded-lg bg-white p-4">
           <View className="flex-row items-center justify-between">
             <View className="flex-1 pr-2">
               <Text className="mb-1 text-sm text-slate-800">{note.text}</Text>
@@ -29,18 +29,18 @@ export function JobNotesSection({
                 {new Date(note.createdAt).toLocaleString()}
               </Text>
             </View>
-            <View className="flex-row items-center gap-2">
+            <View className="flex-row items-center gap-3">
               <TouchableOpacity
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 onPress={() => onEditNote(note)}
               >
-                <Pencil size={18} color="#6b7280" />
+                <Pencil size={20} color="#6b7280" />
               </TouchableOpacity>
               <TouchableOpacity
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 onPress={() => onDeleteNote(note.id)}
               >
-                <Trash2 size={18} color="#9ca3af" />
+                <Trash2 size={20} color="#ef4444" />
               </TouchableOpacity>
             </View>
           </View>
@@ -55,4 +55,3 @@ export function JobNotesSection({
     </View>
   );
 }
-

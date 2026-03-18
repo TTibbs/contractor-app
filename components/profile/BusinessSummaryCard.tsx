@@ -76,9 +76,9 @@ export function BusinessSummaryCard({
           </Text>
           <TouchableOpacity
             onPress={onOpenTaxSettings}
-            className="rounded-full border border-slate-300 px-3 py-1"
+            className="rounded-lg border border-slate-300 px-3 py-1"
           >
-            <Text className="text-xs font-semibold text-slate-700">Adjust</Text>
+            <Text className="text-sm font-semibold text-slate-700">Adjust</Text>
           </TouchableOpacity>
         </View>
         <View className="mt-1 flex-row justify-between">
@@ -99,7 +99,7 @@ export function BusinessSummaryCard({
         <View className="mt-4">
           <Text className="mb-1 text-xs text-gray-500">Record Tax Payment</Text>
           <View className="flex-row items-center gap-2">
-            <View className="flex-1">
+            <View className="flex-1 w-40">
               <TextInput
                 className={`rounded-lg border bg-white px-3 py-2 text-base text-slate-800 ${
                   taxPaymentError ? "border-red-400" : "border-slate-300"
@@ -130,4 +130,3 @@ export function BusinessSummaryCard({
     </Card>
   );
 }
-

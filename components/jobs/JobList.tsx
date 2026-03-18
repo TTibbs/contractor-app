@@ -74,7 +74,7 @@ export function JobList({
               onLongPress={() => onLongPressJob(item)}
             />
           )}
-          contentContainerStyle={{ gap: 8, paddingHorizontal: 8 }}
+          contentContainerClassName="px-4"
         />
       )}
     </View>

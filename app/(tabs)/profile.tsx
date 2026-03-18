@@ -215,7 +215,7 @@ export default function ProfileScreen() {
             />
           )}
 
-          <View className="mb-4">
+          <View className="my-4">
             <Text className="mb-2 text-sm font-semibold text-slate-800">
               All Expenses
             </Text>

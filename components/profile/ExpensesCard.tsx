@@ -21,9 +21,7 @@ export function ExpensesCard({ expenses }: ExpensesCardProps) {
   if (expenses.length === 0) {
     return (
       <Card className="p-3">
-        <Text className="text-sm text-gray-400">
-          No expenses recorded yet.
-        </Text>
+        <Text className="text-sm text-gray-400">No expenses recorded yet.</Text>
       </Card>
     );
   }
@@ -54,10 +52,10 @@ export function ExpensesCard({ expenses }: ExpensesCardProps) {
             </View>
             {expense.jobId && (
               <TouchableOpacity
-                className="items-center justify-center rounded-full border border-slate-300 px-3 py-1"
+                className="items-center justify-center rounded-lg border border-slate-300 px-3 py-1"
                 onPress={() => router.push(`/job/${expense.jobId}`)}
               >
-                <Text className="text-xs font-semibold text-blue-600">
+                <Text className="text-sm font-semibold text-blue-600">
                   View job
                 </Text>
               </TouchableOpacity>
@@ -68,4 +66,3 @@ export function ExpensesCard({ expenses }: ExpensesCardProps) {
     </Card>
   );
 }
-
