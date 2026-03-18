@@ -1,4 +1,5 @@
 import {
+  Client,
   Expense,
   Job,
   JobWithDetails,
@@ -45,6 +46,16 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS clients (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      address TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      updatedAt TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_clients_name ON clients(name COLLATE NOCASE);
 
     CREATE TABLE IF NOT EXISTS notes (
       id TEXT PRIMARY KEY,
@@ -94,6 +105,62 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
 
     CREATE INDEX IF NOT EXISTS idx_jobs_createdAt ON jobs(createdAt);
   `);
+
+    // Best-effort backfill so autocomplete works immediately after upgrade.
+    // If the app already has many jobs, this can take a moment on first startup.
+    try {
+      const now = new Date().toISOString();
+      const jobRows = await database.getAllAsync<{
+        clientName: string;
+        address: string;
+        updatedAt: string;
+      }>(
+        `
+        SELECT clientName, address, updatedAt
+        FROM jobs
+        WHERE TRIM(clientName) != '' AND TRIM(address) != ''
+        ORDER BY updatedAt DESC
+        LIMIT 5000
+        `,
+      );
+
+      // Keep the most recently updated address per case-insensitive client name.
+      const deduped = new Map<
+        string,
+        { name: string; address: string }
+      >();
+      for (const row of jobRows) {
+        const name = row.clientName?.trim();
+        const address = row.address?.trim();
+        if (!name || !address) continue;
+        const key = name.toLowerCase();
+        if (!deduped.has(key)) {
+          deduped.set(key, { name, address });
+        }
+      }
+
+      for (const { name, address } of deduped.values()) {
+        const existing = await database.getFirstAsync<{ id: string }>(
+          `SELECT id FROM clients WHERE name = ? COLLATE NOCASE LIMIT 1`,
+          [name],
+        );
+
+        if (existing?.id) {
+          await database.runAsync(
+            `UPDATE clients SET address = ?, updatedAt = ? WHERE id = ?`,
+            [address, now, existing.id],
+          );
+        } else {
+          const id = Math.random().toString(36).substring(7);
+          await database.runAsync(
+            `INSERT INTO clients (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`,
+            [id, name, address, now, now],
+          );
+        }
+      }
+    } catch {
+      // Ignore backfill failures; the app can continue without autocomplete until new jobs are saved.
+    }
 
     // Best-effort migration: add jobId to existing expenses table if it doesn't exist yet.
     try {
@@ -147,6 +214,61 @@ export async function getCompletedJobs(): Promise<Job[]> {
     ["completed"],
   );
   return result;
+}
+
+export async function searchClients(
+  query: string,
+  limit: number,
+): Promise<Client[]> {
+  const database = await ensureDatabase();
+  const trimmedQuery = query.trim();
+  if (!trimmedQuery) return [];
+
+  return database.getAllAsync<Client>(
+    `
+      SELECT id, name, address
+      FROM clients
+      WHERE name LIKE ? COLLATE NOCASE
+      ORDER BY updatedAt DESC
+      LIMIT ?
+    `,
+    [`${trimmedQuery}%`, limit],
+  );
+}
+
+export async function upsertClient(
+  name: string,
+  address: string,
+): Promise<void> {
+  const database = await ensureDatabase();
+
+  const trimmedName = name.trim();
+  const trimmedAddress = address.trim();
+
+  // Address is required to be meaningful for the job.
+  // If it's blank, we skip creating/updating the client profile.
+  if (!trimmedName || !trimmedAddress) return;
+
+  const now = new Date().toISOString();
+
+  const existing = await database.getFirstAsync<{ id: string }>(
+    `SELECT id FROM clients WHERE name = ? COLLATE NOCASE LIMIT 1`,
+    [trimmedName],
+  );
+
+  if (existing?.id) {
+    await database.runAsync(
+      `UPDATE clients SET address = ?, updatedAt = ? WHERE id = ?`,
+      [trimmedAddress, now, existing.id],
+    );
+    return;
+  }
+
+  const id = Math.random().toString(36).substring(7);
+  await database.runAsync(
+    `INSERT INTO clients (id, name, address, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?)`,
+    [id, trimmedName, trimmedAddress, now, now],
+  );
 }
 
 export async function getYearToDateIncome(year: number): Promise<number> {

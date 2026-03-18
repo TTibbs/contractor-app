@@ -14,6 +14,14 @@ export interface Job {
   updatedAt: string;
 }
 
+export interface Client {
+  id: string;
+  name: string;
+  address: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Note {
   id: string;
   jobId: string;

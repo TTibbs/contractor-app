@@ -1,9 +1,16 @@
 import { FormButtonRow } from "@/components/forms/FormButtonRow";
 import { FormField } from "@/components/forms/FormField";
-import { createJob } from "@/database/db";
+import { createJob, searchClients, upsertClient } from "@/database/db";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { Alert, ScrollView, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  ScrollView,
+  Text,
+  TextInput,
+  Pressable,
+  View,
+} from "react-native";
 
 export function CreateJobForm() {
   const router = useRouter();
@@ -12,6 +19,16 @@ export function CreateJobForm() {
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("");
+
+  const [clientSuggestions, setClientSuggestions] = useState<
+    { id: string; name: string; address: string }[]
+  >([]);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [clientInputFocused, setClientInputFocused] = useState(false);
+  const suppressNextClientSearchRef = useRef(false);
+  const latestClientSearchId = useRef(0);
+  const blurHideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const [errors, setErrors] = useState<{
     title?: string;
     clientName?: string;
@@ -62,6 +79,14 @@ export function CreateJobForm() {
     }
 
     try {
+      const trimmedClientName = clientName.trim();
+      const trimmedAddress = address.trim();
+
+      // Per your requirement: only create/update client profiles when address is populated.
+      if (trimmedAddress) {
+        await upsertClient(trimmedClientName, trimmedAddress);
+      }
+
       await createJob({
         title: title.trim(),
         clientName: clientName.trim(),
@@ -77,6 +102,8 @@ export function CreateJobForm() {
       setDescription("");
       setPrice("");
       setErrors({});
+      setClientSuggestions([]);
+      setShowClientDropdown(false);
 
       router.push("/(tabs)");
     } catch (error) {
@@ -91,11 +118,67 @@ export function CreateJobForm() {
     setAddress("");
     setDescription("");
     setPrice("");
+    setClientSuggestions([]);
+    setShowClientDropdown(false);
     router.push("/(tabs)");
   };
 
+  useEffect(() => {
+    if (!clientInputFocused) return;
+
+    const trimmed = clientName.trim();
+
+    // Skip one search right after selecting a suggestion (prevents dropdown flicker).
+    if (suppressNextClientSearchRef.current) {
+      suppressNextClientSearchRef.current = false;
+      return;
+    }
+
+    if (!trimmed) {
+      setClientSuggestions([]);
+      setShowClientDropdown(false);
+      return;
+    }
+
+    const searchId = ++latestClientSearchId.current;
+    // Hide dropdown while searching; only show it if we get matches.
+    setClientSuggestions([]);
+    setShowClientDropdown(false);
+
+    const timeout = setTimeout(async () => {
+      try {
+        const results = await searchClients(trimmed, 8);
+        if (latestClientSearchId.current !== searchId) return;
+        if (results.length === 0) {
+          setClientSuggestions([]);
+          setShowClientDropdown(false);
+        } else {
+          setClientSuggestions(results);
+          setShowClientDropdown(true);
+        }
+      } catch {
+        if (latestClientSearchId.current !== searchId) return;
+        setClientSuggestions([]);
+        setShowClientDropdown(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timeout);
+  }, [clientName, clientInputFocused]);
+
+  useEffect(() => {
+    // Cleanup any pending blur timeout.
+    return () => {
+      if (blurHideTimeout.current) clearTimeout(blurHideTimeout.current);
+    };
+  }, []);
+
   return (
-    <ScrollView className="flex-1 bg-slate-50">
+    <ScrollView
+      className="flex-1 bg-slate-50"
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="none"
+    >
       <View className="p-4">
         <FormField
           label="Job Title *"
@@ -110,18 +193,83 @@ export function CreateJobForm() {
           error={errors.title}
         />
 
-        <FormField
-          label="Client Name *"
-          value={clientName}
-          onChangeText={(text) => {
-            setClientName(text);
-            if (errors.clientName) {
-              setErrors((prev) => ({ ...prev, clientName: undefined }));
-            }
-          }}
-          placeholder="e.g., John Smith"
-          error={errors.clientName}
-        />
+        <View className="mb-4">
+          <Text className="mb-2 text-sm font-semibold text-slate-700">
+            Client Name *
+          </Text>
+          <TextInput
+            className={`rounded-lg border bg-white px-3 py-3 text-base text-slate-800 ${
+              errors.clientName ? "border-red-400" : "border-slate-300"
+            }`}
+            value={clientName}
+            onChangeText={(text) => {
+              suppressNextClientSearchRef.current = false;
+              setClientName(text);
+              if (errors.clientName) {
+                setErrors((prev) => ({ ...prev, clientName: undefined }));
+              }
+            }}
+            placeholder="e.g., John Smith"
+            onFocus={() => {
+              setClientInputFocused(true);
+              if (blurHideTimeout.current) {
+                clearTimeout(blurHideTimeout.current);
+                blurHideTimeout.current = null;
+              }
+            }}
+            onBlur={() => {
+              blurHideTimeout.current = setTimeout(() => {
+                setClientInputFocused(false);
+                setShowClientDropdown(false);
+              }, 150);
+            }}
+          />
+
+          {errors.clientName && (
+            <Text className="mt-1 text-xs text-red-500" numberOfLines={2}>
+              {errors.clientName}
+            </Text>
+          )}
+
+          {showClientDropdown && (
+            <View className="mt-1 overflow-hidden rounded-lg border border-slate-300 bg-white">
+              <ScrollView
+                style={{ maxHeight: 220 }}
+                nestedScrollEnabled={true}
+                keyboardShouldPersistTaps="handled"
+              >
+                {clientSuggestions.map((item) => (
+                  <Pressable
+                    key={item.id}
+                    onPressIn={() => {
+                      suppressNextClientSearchRef.current = true;
+                      if (blurHideTimeout.current) {
+                        clearTimeout(blurHideTimeout.current);
+                        blurHideTimeout.current = null;
+                      }
+
+                      setClientName(item.name);
+                      setAddress(item.address);
+                      setClientSuggestions([]);
+                      setShowClientDropdown(false);
+                    }}
+                    className="px-3 py-3"
+                  >
+                    <Text className="text-base font-semibold text-slate-800">
+                      {item.name}
+                    </Text>
+                    <Text
+                      className="mt-1 text-xs text-slate-500"
+                      numberOfLines={1}
+                    >
+                      {item.address}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+        </View>
 
         <FormField
           label="Address"
@@ -164,4 +312,3 @@ export function CreateJobForm() {
     </ScrollView>
   );
 }
-
