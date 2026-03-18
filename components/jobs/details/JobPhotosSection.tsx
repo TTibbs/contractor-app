@@ -30,7 +30,7 @@ export function JobPhotosSection({
           onPress={onTakePhoto}
         >
           <Camera size={20} color="#3b82f6" />
-          <Text className="text-sm font-semibold text-blue-500">
+          <Text className="ml-2 text-sm font-semibold text-blue-500">
             Take Photo
           </Text>
         </TouchableOpacity>
@@ -39,7 +39,7 @@ export function JobPhotosSection({
           onPress={onAddPhoto}
         >
           <Camera size={20} color="#3b82f6" />
-          <Text className="text-sm font-semibold text-blue-500">
+          <Text className="ml-2 text-sm font-semibold text-blue-500">
             Choose Photo
           </Text>
         </TouchableOpacity>
@@ -47,4 +47,3 @@ export function JobPhotosSection({
     </View>
   );
 }
-

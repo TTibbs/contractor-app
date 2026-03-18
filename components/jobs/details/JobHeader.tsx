@@ -13,7 +13,7 @@ export function JobHeader({
   backDisabled,
 }: JobHeaderProps) {
   return (
-    <View className="flex-row items-center justify-between border-b border-slate-200 bg-white px-4 pb-4 pt-14">
+    <View className="flex-row items-center justify-between border-b border-slate-200 p-4 pt-14">
       <TouchableOpacity onPress={onBack} disabled={backDisabled}>
         <ArrowLeft size={24} color="#1f2937" />
       </TouchableOpacity>
@@ -22,4 +22,3 @@ export function JobHeader({
     </View>
   );
 }
-
