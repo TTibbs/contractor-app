@@ -116,11 +116,11 @@ export function BusinessSummaryCard({
               )}
             </View>
             <TouchableOpacity
-              className="items-center justify-center rounded-lg bg-blue-500 px-4 py-3"
+              className="items-center justify-center rounded-lg bg-blue-500 px-4 py-3 ml-2"
               onPress={onSaveTaxPayment}
               disabled={savingTaxPayment}
             >
-              <Text className="text-xs font-semibold text-white">
+              <Text className="text-xs font-bold text-white">
                 {savingTaxPayment ? "Saving..." : "Add"}
               </Text>
             </TouchableOpacity>
