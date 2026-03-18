@@ -1,18 +1,20 @@
 import { PhotoThumbnail } from "@/components/PhotoThumbnail";
 import { Photo } from "@/types/job";
-import { Camera } from "lucide-react-native";
+import { Camera, Trash2 } from "lucide-react-native";
 import { Text, TouchableOpacity, View } from "react-native";
 
 type JobPhotosSectionProps = {
   photos: Photo[];
   onTakePhoto: () => void;
   onAddPhoto: () => void;
+  onDeletePhoto?: (photoId: string) => void;
 };
 
 export function JobPhotosSection({
   photos,
   onTakePhoto,
   onAddPhoto,
+  onDeletePhoto,
 }: JobPhotosSectionProps) {
   return (
     <View className="px-4 py-4">
@@ -21,7 +23,32 @@ export function JobPhotosSection({
       </Text>
       <View className="mb-2 flex-row flex-wrap">
         {photos.map((photo) => (
-          <PhotoThumbnail key={photo.id} photo={photo} />
+          <View
+            key={photo.id}
+            style={{ position: "relative", marginRight: 8, marginBottom: 8 }}
+          >
+            <PhotoThumbnail photo={photo} />
+            {onDeletePhoto ? (
+              <TouchableOpacity
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => onDeletePhoto(photo.id)}
+                style={{
+                  position: "absolute",
+                  top: 5,
+                  right: 5,
+                  width: 26,
+                  height: 26,
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 999,
+                  backgroundColor: "#ef4444",
+                  zIndex: 2,
+                }}
+              >
+                <Trash2 size={14} color="#ffffff" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
         ))}
       </View>
       <View className="flex-row space-x-2">

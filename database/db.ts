@@ -403,6 +403,11 @@ export async function addPhoto(jobId: string, uri: string): Promise<Photo> {
   return { id, jobId, uri, createdAt, updatedAt };
 }
 
+export async function deletePhoto(id: string): Promise<void> {
+  const database = await ensureDatabase();
+  await database.runAsync("DELETE FROM photos WHERE id = ?", [id]);
+}
+
 export async function addSignature(
   jobId: string,
   uri: string,

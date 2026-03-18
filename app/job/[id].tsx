@@ -9,6 +9,7 @@ import {
   addExpense,
   addPhoto,
   deleteNote,
+  deletePhoto,
   getExpensesForJob,
   getJobById,
   getTotalExpensesForJob,
@@ -281,6 +282,32 @@ export default function JobDetailsScreen() {
     );
   };
 
+  const handleDeletePhoto = (photoId: string) => {
+    Alert.alert(
+      "Delete photo?",
+      "This will permanently remove this photo from the job.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deletePhoto(photoId);
+              await loadJob();
+            } catch (e) {
+              console.error("Failed to delete photo", e);
+              Alert.alert(
+                "Error",
+                "Could not delete this photo. Please try again.",
+              );
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const beginEditNote = (note: Note) => {
     setEditingNote(note);
     setEditingNoteText(note.text);
@@ -541,6 +568,7 @@ export default function JobDetailsScreen() {
           photos={job.photos}
           onTakePhoto={handleTakePhoto}
           onAddPhoto={handleAddPhoto}
+          onDeletePhoto={handleDeletePhoto}
         />
 
         <JobActionsSection
