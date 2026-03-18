@@ -1,13 +1,12 @@
 import { Tabs } from "expo-router";
 import { Briefcase, Plus, User } from "lucide-react-native";
+import "../global.css";
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         headerShown: true,
-        tabBarActiveTintColor: "#3b82f6",
-        tabBarInactiveTintColor: "#9ca3af",
       }}
     >
       <Tabs.Screen
