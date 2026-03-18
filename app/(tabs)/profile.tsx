@@ -227,6 +227,7 @@ export default function ProfileScreen() {
                 createdAt: new Date(expense.createdAt).toLocaleDateString(),
                 jobId: expense.jobId,
                 jobTitle: expense.jobTitle,
+                receiptCount: expense.receiptCount,
               }))}
             />
           </View>

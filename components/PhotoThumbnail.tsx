@@ -1,9 +1,13 @@
-import { Photo } from "@/types/job";
 import { Image as ExpoImage } from "expo-image";
 import { Text, TouchableOpacity } from "react-native";
 
+type ThumbnailLike = {
+  uri: string;
+  createdAt: string;
+};
+
 interface PhotoThumbnailProps {
-  photo: Photo;
+  photo: ThumbnailLike;
   onPress?: () => void;
 }
 

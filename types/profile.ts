@@ -22,5 +22,6 @@ export interface ExpenseRow {
   createdAt: string;
   jobId: string | null;
   jobTitle: string | null;
+  receiptCount: number;
 }
 

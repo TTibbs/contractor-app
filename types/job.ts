@@ -56,6 +56,14 @@ export interface Expense {
   updatedAt: string;
 }
 
+export interface ExpenseReceipt {
+  id: string;
+  expenseId: string;
+  uri: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
 export interface JobWithDetails extends Job {
   notes: Note[];
   photos: Photo[];

@@ -9,6 +9,7 @@ type ExpenseRow = {
   createdAt: string;
   jobId: string | null;
   jobTitle: string | null;
+  receiptCount: number;
 };
 
 type ExpensesCardProps = {
@@ -49,6 +50,9 @@ export function ExpensesCard({ expenses }: ExpensesCardProps) {
                   Job: {expense.jobTitle}
                 </Text>
               )}
+              <Text className="mt-1 text-xs text-gray-500">
+                Receipts: {expense.receiptCount}
+              </Text>
             </View>
             {expense.jobId && (
               <TouchableOpacity

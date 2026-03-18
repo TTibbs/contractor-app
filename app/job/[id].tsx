@@ -7,10 +7,12 @@ import { JobPhotosSection } from "@/components/jobs/details/JobPhotosSection";
 import { JobSummaryCard } from "@/components/jobs/details/JobSummaryCard";
 import {
   addExpense,
+  addExpensePhoto,
   addPhoto,
   deleteNote,
   deletePhoto,
   getExpensesForJob,
+  getExpensePhotosForJob,
   getJobById,
   getTotalExpensesForJob,
   updateJob,
@@ -20,7 +22,7 @@ import {
 } from "@/database/db";
 import { generateInvoiceForJob } from "@/services/invoiceService";
 import { getJobSignature } from "@/services/signatureService";
-import { Expense, JobWithDetails, Note } from "@/types/job";
+import { Expense, ExpenseReceipt, JobWithDetails, Note } from "@/types/job";
 import * as ImagePicker from "expo-image-picker";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
@@ -55,6 +57,12 @@ export default function JobDetailsScreen() {
   const [expenseError, setExpenseError] = useState<string | null>(null);
   const [jobExpensesTotal, setJobExpensesTotal] = useState(0);
   const [jobExpenses, setJobExpenses] = useState<Expense[]>([]);
+  const [pendingExpenseReceiptThumbnails, setPendingExpenseReceiptThumbnails] =
+    useState<Array<{ uri: string; createdAt: string }>>([]);
+  const [
+    jobExpenseReceiptsByExpenseId,
+    setJobExpenseReceiptsByExpenseId,
+  ] = useState<Record<string, ExpenseReceipt[]>>({});
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [editingNoteText, setEditingNoteText] = useState("");
   const [savingNote, setSavingNote] = useState(false);
@@ -75,14 +83,27 @@ export default function JobDetailsScreen() {
       const jobData = await getJobById(id);
       setJob(jobData);
       if (jobData) {
-        const [signature, expensesTotal, expenses] = await Promise.all([
+        const [
+          signature,
+          expensesTotal,
+          expenses,
+          expenseReceipts,
+        ] = await Promise.all([
           getJobSignature(jobData.id),
           getTotalExpensesForJob(jobData.id),
           getExpensesForJob(jobData.id),
+          getExpensePhotosForJob(jobData.id),
         ]);
         setHasSignature(!!signature);
         setJobExpensesTotal(expensesTotal);
         setJobExpenses(expenses);
+        const grouped: Record<string, ExpenseReceipt[]> = {};
+        for (const receipt of expenseReceipts) {
+          const key = receipt.expenseId;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(receipt);
+        }
+        setJobExpenseReceiptsByExpenseId(grouped);
       } else {
         setHasSignature(false);
         setError("We couldn't find this job. It may have been deleted.");
@@ -230,6 +251,50 @@ export default function JobDetailsScreen() {
     }
   };
 
+  const handleChooseExpenseReceiptPhoto = async () => {
+    if (!job) return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const uri = result.assets[0].uri;
+      setPendingExpenseReceiptThumbnails((prev) => [
+        ...prev,
+        { uri, createdAt: new Date().toISOString() },
+      ]);
+    }
+  };
+
+  const handleTakeExpenseReceiptPhoto = async () => {
+    if (!job) return;
+
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert(
+        "Permission needed",
+        "Camera access is required to take receipt photos",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      const uri = result.assets[0].uri;
+      setPendingExpenseReceiptThumbnails((prev) => [
+        ...prev,
+        { uri, createdAt: new Date().toISOString() },
+      ]);
+    }
+  };
+
   const handleGenerateSummary = () => {
     if (!job) return;
 
@@ -358,7 +423,7 @@ export default function JobDetailsScreen() {
       setLoading(true);
       setExpenseError(null);
 
-      await addExpense({
+      const createdExpense = await addExpense({
         amount: numeric,
         jobId: job.id,
         category: "Job",
@@ -367,16 +432,35 @@ export default function JobDetailsScreen() {
           : job.title,
       });
 
+      // Attach any pending receipt photos to the newly created expense row.
+      for (const receipt of pendingExpenseReceiptThumbnails) {
+        await addExpensePhoto(createdExpense.id, receipt.uri);
+      }
+
+      setPendingExpenseReceiptThumbnails([]);
+
       setExpenseAmount("");
       setExpenseNote("");
       setShowExpenseForm(false);
 
-      const [updatedTotal, updatedExpenses] = await Promise.all([
+      const [
+        updatedTotal,
+        updatedExpenses,
+        updatedReceipts,
+      ] = await Promise.all([
         getTotalExpensesForJob(job.id),
         getExpensesForJob(job.id),
+        getExpensePhotosForJob(job.id),
       ]);
       setJobExpensesTotal(updatedTotal);
       setJobExpenses(updatedExpenses);
+      const grouped: Record<string, ExpenseReceipt[]> = {};
+      for (const receipt of updatedReceipts) {
+        const key = receipt.expenseId;
+        if (!grouped[key]) grouped[key] = [];
+        grouped[key].push(receipt);
+      }
+      setJobExpenseReceiptsByExpenseId(grouped);
 
       Alert.alert(
         "Expense recorded",
@@ -543,6 +627,15 @@ export default function JobDetailsScreen() {
           expenseNote={expenseNote}
           expenseError={expenseError}
           expenses={jobExpenses}
+          expenseReceiptsByExpenseId={jobExpenseReceiptsByExpenseId}
+          pendingExpenseReceiptThumbnails={pendingExpenseReceiptThumbnails}
+          onTakeExpenseReceiptPhoto={handleTakeExpenseReceiptPhoto}
+          onAddExpenseReceiptPhoto={handleChooseExpenseReceiptPhoto}
+          onRemovePendingExpenseReceipt={(index) => {
+            setPendingExpenseReceiptThumbnails((prev) =>
+              prev.filter((_, i) => i !== index),
+            );
+          }}
           onChangeAmount={setExpenseAmount}
           onChangeNote={setExpenseNote}
           onClearError={() => setExpenseError(null)}
@@ -552,6 +645,7 @@ export default function JobDetailsScreen() {
               setExpenseAmount("");
               setExpenseNote("");
               setExpenseError(null);
+              setPendingExpenseReceiptThumbnails([]);
             }
           }}
           onSaveExpense={handleSaveExpense}

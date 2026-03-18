@@ -1,6 +1,7 @@
 import {
   Client,
   Expense,
+  ExpenseReceipt,
   Job,
   JobWithDetails,
   Note,
@@ -82,6 +83,16 @@ export async function initDatabase(): Promise<SQLite.SQLiteDatabase> {
       note TEXT,
       createdAt TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS expense_photos (
+      id TEXT PRIMARY KEY,
+      expenseId TEXT NOT NULL,
+      uri TEXT NOT NULL,
+      createdAt TEXT NOT NULL,
+      FOREIGN KEY (expenseId) REFERENCES expenses(id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_expense_photos_expenseId ON expense_photos(expenseId);
 
     CREATE TABLE IF NOT EXISTS tax_payments (
       id TEXT PRIMARY KEY,
@@ -334,6 +345,7 @@ export interface ExpenseWithJob {
   createdAt: string;
   jobId: string | null;
   jobTitle: string | null;
+  receiptCount: number;
 }
 
 export async function getAllExpenses(): Promise<ExpenseWithJob[]> {
@@ -346,7 +358,12 @@ export async function getAllExpenses(): Promise<ExpenseWithJob[]> {
       e.note,
       e.createdAt,
       e.jobId,
-      j.title AS jobTitle
+      j.title AS jobTitle,
+      (
+        SELECT COUNT(*)
+        FROM expense_photos ep
+        WHERE ep.expenseId = e.id
+      ) AS receiptCount
     FROM expenses e
     LEFT JOIN jobs j ON e.jobId = j.id
     ORDER BY e.createdAt DESC
@@ -567,7 +584,7 @@ export interface NewExpenseInput {
   createdAt?: string;
 }
 
-export async function addExpense(input: NewExpenseInput): Promise<void> {
+export async function addExpense(input: NewExpenseInput): Promise<Expense> {
   const database = await ensureDatabase();
 
   const id = Math.random().toString(36).substring(7);
@@ -583,6 +600,56 @@ export async function addExpense(input: NewExpenseInput): Promise<void> {
       input.note ?? null,
       createdAt,
     ],
+  );
+
+  // The `expenses` table currently stores `createdAt` only, but the app types
+  // model `updatedAt` as well. We set it here for type consistency.
+  return {
+    id,
+    jobId: input.jobId ?? null,
+    category: input.category ?? null,
+    amount: input.amount,
+    note: input.note ?? null,
+    createdAt,
+    updatedAt: createdAt,
+  };
+}
+
+export async function addExpensePhoto(
+  expenseId: string,
+  uri: string,
+): Promise<ExpenseReceipt> {
+  const database = await ensureDatabase();
+
+  const id = Math.random().toString(36).substring(7);
+  const createdAt = new Date().toISOString();
+
+  await database.runAsync(
+    "INSERT INTO expense_photos (id, expenseId, uri, createdAt) VALUES (?, ?, ?, ?)",
+    [id, expenseId, uri, createdAt],
+  );
+
+  return { id, expenseId, uri, createdAt };
+}
+
+export async function getExpensePhotosForJob(
+  jobId: string,
+): Promise<ExpenseReceipt[]> {
+  const database = await ensureDatabase();
+
+  return database.getAllAsync<ExpenseReceipt>(
+    `
+      SELECT
+        ep.id,
+        ep.expenseId,
+        ep.uri,
+        ep.createdAt
+      FROM expense_photos ep
+      INNER JOIN expenses e ON ep.expenseId = e.id
+      WHERE e.jobId = ?
+      ORDER BY ep.createdAt DESC
+    `,
+    [jobId],
   );
 }
 
