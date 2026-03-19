@@ -38,7 +38,7 @@ export function JobSummaryCard({
 }: JobSummaryCardProps) {
   const statusBgClass =
     job.status === "pending"
-      ? "bg-amber-500"
+      ? "bg-black"
       : job.status === "in_progress"
         ? "bg-blue-500"
         : "bg-emerald-600";
@@ -76,7 +76,7 @@ export function JobSummaryCard({
           <Text className="mb-3 text-2xl font-bold text-slate-800">
             {job.title}
           </Text>
-          <View className="mb-3">
+          <View>
             <Text className="mb-1 text-xs text-gray-500">Client:</Text>
             <Text className="text-base text-slate-800">{job.clientName}</Text>
           </View>
@@ -84,7 +84,7 @@ export function JobSummaryCard({
       )}
 
       <View
-        className={`mb-4 self-start rounded-xl px-3 py-1.5 ${statusBgClass}`}
+        className={`mb-4 self-start rounded-xl px-3 py-1.5 ${statusBgClass} text-black`}
       >
         <Text className="text-sm font-semibold text-white">{statusLabel}</Text>
       </View>
@@ -195,4 +195,3 @@ export function JobSummaryCard({
     </View>
   );
 }
-

@@ -74,7 +74,7 @@ export default function JobListScreen() {
   };
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50 mt-12">
       <JobList
         jobs={jobs}
         loading={loading}

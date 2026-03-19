@@ -179,13 +179,8 @@ export default function ProfileScreen() {
 
   return (
     <>
-      <ScrollView className="flex-1 bg-slate-50">
+      <ScrollView className="flex-1 bg-slate-50 mt-12">
         <View className="px-4 pt-4 pb-6">
-          <View className="mb-3">
-            <Text className="text-xl font-bold text-slate-800">
-              Business Dashboard
-            </Text>
-          </View>
           <Text className="mb-4 text-xs uppercase tracking-wide text-gray-400">
             Year to date overview
           </Text>

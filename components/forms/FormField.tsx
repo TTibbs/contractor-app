@@ -31,9 +31,7 @@ export function FormField({
 
   return (
     <View className={`${baseContainerClasses} ${containerClassName ?? ""}`}>
-      <Text className="mb-2 text-sm font-semibold text-slate-700">
-        {label}
-      </Text>
+      <Text className="mb-2 text-sm font-semibold text-slate-700">{label}</Text>
       <TextInput
         className={`${baseInputClasses} ${
           error ? "border-red-400" : "border-slate-300"
@@ -41,6 +39,7 @@ export function FormField({
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
+        placeholderTextColor="#9CA3AF"
         multiline={multiline}
         numberOfLines={numberOfLines}
         textAlignVertical={multiline ? "top" : "center"}
@@ -54,4 +53,3 @@ export function FormField({
     </View>
   );
 }
-
